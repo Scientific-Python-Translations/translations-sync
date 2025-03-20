@@ -5,7 +5,7 @@ inputs:
   source-repo:
     description: "Source repository"
     required: true
-  gpg_private_key:
+  gpg-private-key:
     description: "GPG private key of the user/email making the commits"
     required: true
   passphrase: 
@@ -27,7 +27,7 @@ runs:
       id: import-gpg
       uses: crazy-max/ghaction-import-gpg@v4
       with:
-        gpg_private_key: ${{ inputs.GPG_PRIVATE_KEY }}
+        gpg_private_key: ${{ inputs.GPG-PRIVATE-KEY }}
         passphrase: ${{ inputs.PASSPHRASE }}
         git_user_signingkey: true
         git_commit_gpgsign: true

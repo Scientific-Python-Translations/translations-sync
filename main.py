@@ -223,8 +223,7 @@ def parse_input() -> dict:
 
 def main():
     try:
-        gh_input = parse_input()
-        sync_website_content(**gh_input)
+        parse_input()
     except Exception as e:
         print("Error: ", e)
         print(traceback.format_exc())

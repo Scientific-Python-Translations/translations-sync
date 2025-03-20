@@ -1,0 +1,26 @@
+name: Test
+on:
+  - push
+  - pull_request
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+      - name: Run pre-commit
+        run: |
+          pip install pre-commit
+          pre-commit run --all-files
+      - name: Test action
+        uses: Scientific-Python-Translations/translations-sync@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source-repo: "scipy/scipy.org"
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+          token: ${{ secrets.TOKEN }}
+          crowding-token: ${{ secrets.CROWDIN_TOKEN }}
