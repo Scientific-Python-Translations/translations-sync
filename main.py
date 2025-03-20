@@ -1,4 +1,3 @@
-import json
 import os
 import traceback
 from datetime import datetime
@@ -6,7 +5,6 @@ from subprocess import Popen, PIPE
 
 from crowdin_api import CrowdinClient
 from github import Github, Auth
-
 
 
 class ScientificCrowdinClient:
@@ -19,41 +17,47 @@ class ScientificCrowdinClient:
     def get_projects(self):
         result = {}
         projects = self._client.projects.with_fetch_all().list_projects()
-        for project in projects['data']:
-            result[project['data']['name']] = project['data']['id']
+        for project in projects["data"]:
+            result[project["data"]["name"]] = project["data"]["id"]
         return result
 
     def get_languages(self):
         result = {}
         projects = self._client.projects.with_fetch_all().list_projects()
-        for project in projects['data']:
-            result[project['data']['name']] = project['data']['targetLanguageIds']
+        for project in projects["data"]:
+            result[project["data"]["name"]] = project["data"]["targetLanguageIds"]
         return result
 
     def get_projects_status(self):
         for project, project_id in self.get_projects().items():
-            languages = self._client.translation_status.get_project_progress(project_id)['data']
+            languages = self._client.translation_status.get_project_progress(
+                project_id
+            )["data"]
             for language in languages:
-                language_name = language['data']['language']["name"]
-                language_id = language['data']['language']["id"]
-                progress = language['data']['translationProgress']
-                approval = language['data']['approvalProgress']
+                language_name = language["data"]["language"]["name"]
+                language_id = language["data"]["language"]["id"]
+                progress = language["data"]["translationProgress"]
+                approval = language["data"]["approvalProgress"]
                 if progress > 0:
-                    print(f"{project} - {language_name} ({language_id}) - {progress}% / {approval}%")
+                    print(
+                        f"{project} - {language_name} ({language_id}) - {progress}% / {approval}%"
+                    )
             # print(json.dumps(languages, indent=4, default=str))
 
     def get_members(self):
         for project, project_id in self.get_projects().items():
-            print(f'\n# {project}')
-            members = self._client.users.list_project_members(project_id)['data']
+            print(f"\n# {project}")
+            members = self._client.users.list_project_members(project_id)["data"]
             for member in members:
-                roles = member['data']['roles']
-                permissions = member['data']['permissions']
+                roles = member["data"]["roles"]
+                permissions = member["data"]["permissions"]
                 if roles and permissions:
-                    role_names = ', '.join([role['name'] for role in roles])
-                    permission_names = ', '.join([perm for perm in permissions])
-                    member_id = member['data']['id']
-                    print(f"{member['data']['username']} ({role_names}) {permission_names}")
+                    role_names = ", ".join([role["name"] for role in roles])
+                    permission_names = ", ".join([perm for perm in permissions])
+                    # member_id = member["data"]["id"]
+                    print(
+                        f"{member['data']['username']} ({role_names}) {permission_names}"
+                    )
 
             # print(json.dumps(members, indent=4, default=str))
 
@@ -62,7 +66,7 @@ class ScientificCrowdinClient:
         languages = self.get_languages()
         for project, project_id in sorted(self.get_projects().items()):
             results[project] = {}
-            print(f'\n\n{project}')
+            print(f"\n\n{project}")
             langs = languages[project]
             for lang in sorted(langs):
                 results[project][lang] = {}
@@ -71,21 +75,25 @@ class ScientificCrowdinClient:
                 offset = 0
                 limit = 500
                 while True:
-                    items = self._client.string_translations.list_language_translations(lang, project_id, limit=limit, offset=offset)
-                    if data := items['data']:
+                    items = self._client.string_translations.list_language_translations(
+                        lang, project_id, limit=limit, offset=offset
+                    )
+                    if data := items["data"]:
                         # print(data)
                         for item in data:
-                            users.add(item['data']['user']['username'])
-                            translation_ids.add(item['data']['translationId'])
+                            users.add(item["data"]["user"]["username"])
+                            translation_ids.add(item["data"]["translationId"])
                         # print(items['pagination'], items['data'])
                         offset += limit
                     else:
                         if users:
-                            results[project][lang]['translators'] = sorted(users)
-                            results[project][lang]['translation_ids'] = sorted(translation_ids)
+                            results[project][lang]["translators"] = sorted(users)
+                            results[project][lang]["translation_ids"] = sorted(
+                                translation_ids
+                            )
                             print(lang, sorted(users))
                         else:
-                            results[project][lang]['translation_ids'] = []
+                            results[project][lang]["translation_ids"] = []
                         break
 
         return results
@@ -94,7 +102,7 @@ class ScientificCrowdinClient:
         results = {}
         languages = self.get_languages()
         for project, project_id in sorted(self.get_projects().items()):
-            print(f'\n\n{project}')
+            print(f"\n\n{project}")
             results[project] = {}
             langs = languages[project]
             for lang in sorted(langs):
@@ -103,13 +111,15 @@ class ScientificCrowdinClient:
                 offset = 0
                 limit = 500
                 while True:
-                    items = self._client.string_translations.list_language_translations(lang, project_id, limit=limit, offset=offset)
-                    if data := items['data']:
+                    items = self._client.string_translations.list_language_translations(
+                        lang, project_id, limit=limit, offset=offset
+                    )
+                    if data := items["data"]:
                         # print(data)
                         for item in data:
                             # print(item['data'])
-                            results[project][lang].append(item['data']['translationId'])
-                            users.add(item['data']['user']['username'])
+                            results[project][lang].append(item["data"]["translationId"])
+                            users.add(item["data"]["user"]["username"])
                         # print(items['pagination'], items['data'])
                         offset += limit
                     else:
@@ -123,16 +133,18 @@ class ScientificCrowdinClient:
     def get_reviewers(self, translators):
         languages = self.get_languages()
         for project, project_id in sorted(self.get_projects().items()):
-            print(f'\n\n{project}')
+            print(f"\n\n{project}")
             langs = languages[project]
             for lang in sorted(langs):
-                users = set([])
-                translation_ids = translators[project][lang]['translation_ids']
-                offset = 0
-                limit = 500
+                # users = set([])
+                translation_ids = translators[project][lang]["translation_ids"]
+                # offset = 0
+                # limit = 500
                 for trans_id in translation_ids:
-                    items = self._client.string_translations.list_translation_approvals(projectId=project_id, translationId=trans_id)
-                    if data := items['data']:
+                    items = self._client.string_translations.list_translation_approvals(
+                        projectId=project_id, translationId=trans_id
+                    )
+                    if data := items["data"]:
                         print(data)
                 # while True:
                 #     items = self._client.string_translations.list_translation_approvals(projectId=project_id, languageId=lang, translationId=, limit=limit, offset=offset)
