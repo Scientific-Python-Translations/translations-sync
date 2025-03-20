@@ -21,8 +21,9 @@ jobs:
         with:
           source-repo: "goanpeca/scipy.org"
           crowdin-project: "scipy.org"
-          translation-percentage: "98"
+          translation-percentage: "90"
           approval-percentage: "30"
+          use-precommit: "true"
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
           token: ${{ secrets.TOKEN }}

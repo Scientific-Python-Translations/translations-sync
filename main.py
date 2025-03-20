@@ -1,3 +1,4 @@
+import json
 import os
 import traceback
 from datetime import datetime
@@ -27,6 +28,24 @@ class ScientificCrowdinClient:
         for project in projects["data"]:
             result[project["data"]["name"]] = project["data"]["targetLanguageIds"]
         return result
+
+    def get_project_status(self, project):
+        results = {}
+        for project_name, project_id in self.get_projects().items():
+            if project != project_name:
+                continue
+
+            languages = self._client.translation_status.get_project_progress(
+                project_id
+            )["data"]
+            for language in languages:
+                language_id = language["data"]["language"]["id"]
+                results[language_id] = {
+                    "language_name": language["data"]["language"]["name"],
+                    "progress": language["data"]["translationProgress"],
+                    "approval": language["data"]["approvalProgress"],
+                }
+        return results
 
     def get_projects_status(self):
         for project, project_id in self.get_projects().items():
@@ -367,6 +386,7 @@ def parse_input() -> dict:
         "crowdin_project": os.environ["INPUT_CROWDIN-PROJECT"],
         "approval_percentage": os.environ["INPUT_APPROVAL-PERCENTAGE"],
         "translation_percentage": os.environ["INPUT_TRANSLATION-PERCENTAGE"],
+        "use_precommit": os.environ["INPUT_USE-PRECOMMIT"].lower() == "true",
         # Provided by gpg action based on organization secrets
         "name": os.environ["GPG_NAME"],
         "email": os.environ["GPG_EMAIL"],
@@ -374,13 +394,27 @@ def parse_input() -> dict:
     return gh_input
 
 
+def get_languages(gh_input):
+    """"""
+    translation_percentage = int(gh_input["translation_percentage"])
+    approval_percentage = int(gh_input["approval_percentage"])
+    client = ScientificCrowdinClient(
+        token=gh_input["crowdin_token"], organization="Scientific-python"
+    )
+    project_languages = client.get_project_status(gh_input["crowdin_project"])
+    print(json.dumps(project_languages, sort_keys=True, indent=4))
+    for language_id, data in project_languages.items():
+        approval = data["approval"]
+        progress = data["progress"]
+        language = data["language_name"]
+        if progress >= translation_percentage and approval >= approval_percentage:
+            print(f"\n{language_id} {language}:  {progress}% / {approval}%")
+
+
 def main():
     try:
         gh_input = parse_input()
-        client = ScientificCrowdinClient(
-            token=gh_input["crowdin_token"], organization="Scientific-python"
-        )
-        print(client.get_projects_status())
+        get_languages(gh_input)
     except Exception as e:
         print("Error: ", e)
         print(traceback.format_exc())
