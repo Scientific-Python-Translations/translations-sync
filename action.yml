@@ -5,6 +5,9 @@ inputs:
   source-repo:
     description: "Source repository"
     required: true
+  translation-percentage:
+    description: "Minimum value of language translation to create a PR e.g. '98'"
+    required: true
   approval-percentage:
     description: "Minimum value of language approval to create a PR e.g. '95'"
     required: true
@@ -49,6 +52,7 @@ runs:
       env:
         INPUT_SOURCE-REPO: ${{ inputs.SOURCE-REPO }}
         INPUT_APPROVAL-PERCENTAGE: ${{ inputs.APPROVAL-PERCENTAGE }}
+        INPUT_TRANSLATION-PERCENTAGE: ${{ inputs.TRANSLATION-PERCENTAGE }}
         GPG_NAME: ${{ steps.import-gpg.outputs.name }}
         GPG_EMAIL: ${{ steps.import-gpg.outputs.email }}
         TOKEN: ${{ inputs.TOKEN }}
