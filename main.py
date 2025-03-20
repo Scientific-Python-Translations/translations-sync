@@ -374,8 +374,10 @@ def parse_input() -> dict:
 
 def main():
     try:
-        print(parse_input())
-        client = ScientificCrowdinClient(token=gh_input["crowdin_token"], organization="Scientific-python")
+        gh_input = parse_input()
+        client = ScientificCrowdinClient(
+            token=gh_input["crowdin_token"], organization="Scientific-python"
+        )
         print(client.get_projects_status())
     except Exception as e:
         print("Error: ", e)
