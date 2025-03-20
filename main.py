@@ -364,6 +364,7 @@ def parse_input() -> dict:
         "crowdin_token": os.environ["CROWDIN_TOKEN"],
         # Provided by user action input
         "source_repo": os.environ["INPUT_SOURCE-REPO"],
+        "crowdin_project": os.environ["INPUT_CROWDIN-PROJECT"],
         "approval_percentage": os.environ["INPUT_APPROVAL-PERCENTAGE"],
         "translation_percentage": os.environ["INPUT_TRANSLATION-PERCENTAGE"],
         # Provided by gpg action based on organization secrets

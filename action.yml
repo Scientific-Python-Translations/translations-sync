@@ -51,6 +51,7 @@ runs:
       shell: bash
       env:
         INPUT_SOURCE-REPO: ${{ inputs.SOURCE-REPO }}
+        INPUT_CROWDIN-PROJECT: ${{ inputs.CROWDIN-PROJECT }}
         INPUT_APPROVAL-PERCENTAGE: ${{ inputs.APPROVAL-PERCENTAGE }}
         INPUT_TRANSLATION-PERCENTAGE: ${{ inputs.TRANSLATION-PERCENTAGE }}
         GPG_NAME: ${{ steps.import-gpg.outputs.name }}

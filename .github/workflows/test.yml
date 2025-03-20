@@ -19,7 +19,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          source-repo: "scipy/scipy.org"
+          source-repo: "goanpeca/scipy.org"
+          crowdin-project: "scipy.org"
           translation-percentage: "98"
           approval-percentage: "30"
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
