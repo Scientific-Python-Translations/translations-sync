@@ -365,7 +365,7 @@ def parse_input() -> dict:
         # Provided by user action input
         "source_repo": os.environ["INPUT_SOURCE-REPO"],
         "approval_percentage": os.environ["INPUT_APPROVAL-PERCENTAGE"],
-        "translation_percentage": os.environ["INPUT_TRANSLATIONS-PERCENTAGE"],
+        "translation_percentage": os.environ["INPUT_TRANSLATION-PERCENTAGE"],
         # Provided by gpg action based on organization secrets
         "name": os.environ["GPG_NAME"],
         "email": os.environ["GPG_EMAIL"],
