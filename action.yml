@@ -5,6 +5,9 @@ inputs:
   source-repo:
     description: "Source repository"
     required: true
+  approval-percentage:
+    description: "Minimum value of language approval to create a PR e.g. '95'"
+    required: true
   gpg-private-key:
     description: "GPG private key of the user/email making the commits"
     required: true
@@ -44,16 +47,12 @@ runs:
     - name: Run scripts
       shell: bash
       env:
-        TOKEN: ${{ inputs.TOKEN }}
-        CROWDIN_TOKEN: ${{ inputs.CROWDIN-TOKEN }}
         INPUT_SOURCE-REPO: ${{ inputs.SOURCE-REPO }}
-        INPUT_SOURCE-FOLDER: ${{ inputs.SOURCE-FOLDER }}
-        INPUT_SOURCE-REF: ${{ inputs.SOURCE-REF }}
-        INPUT_TRANSLATIONS-REPO: ${{ inputs.TRANSLATIONS-REPO }}
-        INPUT_TRANSLATIONS-FOLDER: ${{ inputs.TRANSLATIONS-FOLDER }}
-        INPUT_TRANSLATIONS-REF: ${{ inputs.TRANSLATIONS-REF }}
+        INPUT_APPROVAL-PERCENTAGE: ${{ inputs.APPROVAL-PERCENTAGE }}
         GPG_NAME: ${{ steps.import-gpg.outputs.name }}
         GPG_EMAIL: ${{ steps.import-gpg.outputs.email }}
+        TOKEN: ${{ inputs.TOKEN }}
+        CROWDIN_TOKEN: ${{ inputs.CROWDIN-TOKEN }}
       run: |
         python -m pip install --upgrade pip
         python -m pip install crowdin-api-client pygithub requests
