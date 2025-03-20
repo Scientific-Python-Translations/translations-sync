@@ -20,7 +20,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           source-repo: "scipy/scipy.org"
-          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
           token: ${{ secrets.TOKEN }}
-          crowding-token: ${{ secrets.CROWDIN_TOKEN }}
+          crowdin-token: ${{ secrets.CROWDIN_TOKEN }}
