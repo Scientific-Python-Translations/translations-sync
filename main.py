@@ -242,7 +242,7 @@ def run(cmds):
     return out, err, p.returncode
 
 
-def sync_website_content(
+def create_translations_pr(
     username,
     token,
     source_repo,
@@ -278,7 +278,21 @@ def sync_website_content(
         Name of the bot account.
     email : str
         Email of the bot account.
+
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          ../automations/scripts/create_branch_for_language.sh origin main l10n_main ${{ github.event.inputs.language_code }}
+          branch_name=$(git rev-parse --abbrev-ref HEAD)
+          git push -u origin $branch_name
+          echo "BRANCH_NAME=$branch_name" >> $GITHUB_ENV
+        working-directory: ./scipy.org-translations
+
     """
+    # Configure git information
     run(["git", "config", "--global", "user.name", f'"{name}"'])
     run(["git", "config", "--global", "user.email", f'"{email}"'])
 
@@ -403,6 +417,11 @@ def parse_input() -> dict:
         "crowdin_token": os.environ["CROWDIN_TOKEN"],
         # Provided by user action input
         "source_repo": os.environ["INPUT_SOURCE-REPO"],
+        "source_folder": os.environ["INPUT_SOURCE-FOLDER"],
+        "source_ref": os.environ["INPUT_SOURCE-REF"],
+        "translations_repo": os.environ["INPUT_TRANSLATIONS-REPO"],
+        "translations_folder": os.environ["INPUT_TRANSLATIONS-FOLDER"],
+        "translations_ref": os.environ["INPUT_TRANSLATIONS-REF"],
         "crowdin_project": os.environ["INPUT_CROWDIN-PROJECT"],
         "approval_percentage": os.environ["INPUT_APPROVAL-PERCENTAGE"],
         "translation_percentage": os.environ["INPUT_TRANSLATION-PERCENTAGE"],
@@ -412,6 +431,29 @@ def parse_input() -> dict:
         "email": os.environ["GPG_EMAIL"],
     }
     return gh_input
+
+
+def filter_commits(filename: str, language: str) -> None:
+    """Edits the git-rebase-todo file to pick only commits for one language
+
+    Used in GIT_SEQUENCE_EDITOR for scripted interactive rebase.
+
+    Parameters
+    ----------
+    filename : str
+
+    language : str
+        Crowdin language.
+    """
+    # language = language_code_map[language_code.lower()]
+    with open(filename) as f:
+        lines = [line.strip().split(maxsplit=2) for line in f.readlines()]
+    lines = [
+        line for line in lines if line and line[0] == "pick" and language in line[-1]
+    ]
+    output = "\n".join(" ".join(line) for line in lines) + "\n"
+    with open(filename, "w") as f:
+        f.write(output)
 
 
 def main():
@@ -426,7 +468,6 @@ def main():
             int(gh_input["approval_percentage"]),
         )
         print(valid_languages)
-        # get_languages(gh_input)
     except Exception as e:
         print("Error: ", e)
         print(traceback.format_exc())
