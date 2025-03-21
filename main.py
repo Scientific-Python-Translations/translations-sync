@@ -178,6 +178,26 @@ class ScientificCrowdinClient:
                 #             # print(lang, sorted(users))
                 #         break
 
+    def get_valid_languages(
+        self, project_name, translation_percentage, approval_percentage
+    ):
+        """"""
+        valid_languages = {}
+        project_languages = self.get_project_status(project_name)
+        print(json.dumps(project_languages, sort_keys=True, indent=4))
+        for language_id, data in project_languages.items():
+            approval = data["approval"]
+            progress = data["progress"]
+            language_name = data["language_name"]
+            if progress >= translation_percentage and approval >= approval_percentage:
+                print(f"\n{language_id} {language_name}:  {progress}% / {approval}%")
+                valid_languages[language_id] = {
+                    "language_name": language_name,
+                    "progress": progress,
+                    "approval": approval,
+                }
+        return valid_languages
+
 
 # Set the output value by writing to the outputs in the Environment File, mimicking the behavior defined here:
 #  https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-output-parameter
@@ -394,27 +414,19 @@ def parse_input() -> dict:
     return gh_input
 
 
-def get_languages(gh_input):
-    """"""
-    translation_percentage = int(gh_input["translation_percentage"])
-    approval_percentage = int(gh_input["approval_percentage"])
-    client = ScientificCrowdinClient(
-        token=gh_input["crowdin_token"], organization="Scientific-python"
-    )
-    project_languages = client.get_project_status(gh_input["crowdin_project"])
-    print(json.dumps(project_languages, sort_keys=True, indent=4))
-    for language_id, data in project_languages.items():
-        approval = data["approval"]
-        progress = data["progress"]
-        language = data["language_name"]
-        if progress >= translation_percentage and approval >= approval_percentage:
-            print(f"\n{language_id} {language}:  {progress}% / {approval}%")
-
-
 def main():
     try:
         gh_input = parse_input()
-        get_languages(gh_input)
+        client = ScientificCrowdinClient(
+            token=gh_input["crowdin_token"], organization="Scientific-python"
+        )
+        valid_languages = client.get_valid_languages(
+            gh_input["crowdin_project"],
+            int(gh_input["translation_percentage"]),
+            int(gh_input["approval_percentage"]),
+        )
+        print(valid_languages)
+        # get_languages(gh_input)
     except Exception as e:
         print("Error: ", e)
         print(traceback.format_exc())
