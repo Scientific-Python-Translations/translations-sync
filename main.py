@@ -178,6 +178,26 @@ class ScientificCrowdinClient:
                 #             # print(lang, sorted(users))
                 #         break
 
+    def get_valid_languages(
+        self, project_name, translation_percentage, approval_percentage
+    ):
+        """"""
+        valid_languages = {}
+        project_languages = self.get_project_status(project_name)
+        print(json.dumps(project_languages, sort_keys=True, indent=4))
+        for language_id, data in project_languages.items():
+            approval = data["approval"]
+            progress = data["progress"]
+            language_name = data["language_name"]
+            if progress >= translation_percentage and approval >= approval_percentage:
+                print(f"\n{language_id} {language_name}:  {progress}% / {approval}%")
+                valid_languages[language_id] = {
+                    "language_name": language_name,
+                    "progress": progress,
+                    "approval": approval,
+                }
+        return valid_languages
+
 
 # Set the output value by writing to the outputs in the Environment File, mimicking the behavior defined here:
 #  https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-output-parameter
@@ -222,7 +242,7 @@ def run(cmds):
     return out, err, p.returncode
 
 
-def sync_website_content(
+def pr(
     username,
     token,
     source_repo,
@@ -258,7 +278,21 @@ def sync_website_content(
         Name of the bot account.
     email : str
         Email of the bot account.
+
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          ../automations/scripts/create_branch_for_language.sh origin main l10n_main ${{ github.event.inputs.language_code }}
+          branch_name=$(git rev-parse --abbrev-ref HEAD)
+          git push -u origin $branch_name
+          echo "BRANCH_NAME=$branch_name" >> $GITHUB_ENV
+        working-directory: ./scipy.org-translations
+
     """
+    # Configure git information
     run(["git", "config", "--global", "user.name", f'"{name}"'])
     run(["git", "config", "--global", "user.email", f'"{email}"'])
 
@@ -383,6 +417,11 @@ def parse_input() -> dict:
         "crowdin_token": os.environ["CROWDIN_TOKEN"],
         # Provided by user action input
         "source_repo": os.environ["INPUT_SOURCE-REPO"],
+        "source_folder": os.environ["INPUT_SOURCE-FOLDER"],
+        "source_ref": os.environ["INPUT_SOURCE-REF"],
+        "translations_repo": os.environ["INPUT_TRANSLATIONS-REPO"],
+        "translations_folder": os.environ["INPUT_TRANSLATIONS-FOLDER"],
+        "translations_ref": os.environ["INPUT_TRANSLATIONS-REF"],
         "crowdin_project": os.environ["INPUT_CROWDIN-PROJECT"],
         "approval_percentage": os.environ["INPUT_APPROVAL-PERCENTAGE"],
         "translation_percentage": os.environ["INPUT_TRANSLATION-PERCENTAGE"],
@@ -394,27 +433,153 @@ def parse_input() -> dict:
     return gh_input
 
 
-def get_languages(gh_input):
-    """"""
-    translation_percentage = int(gh_input["translation_percentage"])
-    approval_percentage = int(gh_input["approval_percentage"])
-    client = ScientificCrowdinClient(
-        token=gh_input["crowdin_token"], organization="Scientific-python"
-    )
-    project_languages = client.get_project_status(gh_input["crowdin_project"])
-    print(json.dumps(project_languages, sort_keys=True, indent=4))
-    for language_id, data in project_languages.items():
-        approval = data["approval"]
-        progress = data["progress"]
-        language = data["language_name"]
-        if progress >= translation_percentage and approval >= approval_percentage:
-            print(f"\n{language_id} {language}:  {progress}% / {approval}%")
+def filter_commits(filename: str, language: str) -> None:
+    """Edits the git-rebase-todo file to pick only commits for one language
+
+    Used in GIT_SEQUENCE_EDITOR for scripted interactive rebase.
+
+    Parameters
+    ----------
+    filename : str
+
+    language : str
+        Crowdin language.
+    """
+    # language = language_code_map[language_code.lower()]
+    with open(filename) as f:
+        lines = [line.strip().split(maxsplit=2) for line in f.readlines()]
+    lines = [
+        line for line in lines if line and line[0] == "pick" and language in line[-1]
+    ]
+    output = "\n".join(" ".join(line) for line in lines) + "\n"
+    with open(filename, "w") as f:
+        f.write(output)
+
+
+def create_translations_pr(
+    username,
+    token,
+    source_repo,
+    source_folder,
+    source_ref,
+    translations_repo,
+    translations_folder,
+    translations_ref,
+    name,
+    email,
+    language,
+):
+    # Configure git information
+    run(["git", "config", "--global", "user.name", f'"{name}"'])
+    run(["git", "config", "--global", "user.email", f'"{email}"'])
+
+    if source_ref:
+        cmds = [
+            "git",
+            "clone",
+            "--single-branch",
+            "-b",
+            source_ref,
+            f"https://{username}:{token}@github.com/{source_repo}.git",
+        ]
+    else:
+        cmds = [
+            "git",
+            "clone",
+            f"https://{username}:{token}@github.com/{source_repo}.git",
+        ]
+
+    run(cmds)
+
+    if translations_ref:
+        cmds = [
+            "git",
+            "clone",
+            "-b",
+            translations_ref,
+            f"https://{username}:{token}@github.com/{translations_repo}.git",
+        ]
+    else:
+        cmds = [
+            "git",
+            "clone",
+            f"https://{username}:{token}@github.com/{translations_repo}.git",
+        ]
+
+    run(cmds)
+
+
+"""
+../automations/scripts/create_branch_for_language.sh origin main l10n_main ${{ github.event.inputs.language_code }}
+          branch_name=$(git rev-parse --abbrev-ref HEAD)
+          git push -u origin $branch_name
+          echo "BRANCH_NAME=$branch_name" >> $GITHUB_ENV
+
+
+# Make sure source branch is up to date with upstream
+git checkout $source_branch
+git fetch $upstream_remote
+git merge --ff-only "${upstream_remote}/${source_branch}"
+
+# Make sure the corresponding Crowdin branch is up to date
+git checkout $crowdin_branch
+git merge --ff-only "${upstream_remote}/${crowdin_branch}"
+
+# Check that crowdin branch has no merge conflicts with respect to the source branch
+git checkout $source_branch
+merge_output=$(git merge --no-commit --no-ff $crowdin_branch)
+git merge --abort
+
+git checkout $crowdin_branch
+
+# Generate a timestamp for use in branch name
+timestamp=$(date +%Y_%m_%d_%H_%M_%S)
+
+# Checkout a new branch for these translations
+new_branch="${crowdin_branch}_${language_code}_${timestamp}"
+git checkout -b $new_branch
+
+# Perform scripted interactive rebase, taking only commits
+# for the language of interest.
+GIT_SEQUENCE_EDITOR="f() {
+    filename=\$1
+    python3 -c \"
+import sys
+sys.path.insert(0, '$script_location')
+from git_tools import filter_commits
+
+filter_commits('\$filename', '$language_code')
+\"
+}; f" git rebase -i "$source_branch"
+"""
 
 
 def main():
     try:
         gh_input = parse_input()
-        get_languages(gh_input)
+        client = ScientificCrowdinClient(
+            token=gh_input["crowdin_token"], organization="Scientific-python"
+        )
+        valid_languages = client.get_valid_languages(
+            gh_input["crowdin_project"],
+            int(gh_input["translation_percentage"]),
+            int(gh_input["approval_percentage"]),
+        )
+        for _language_id, data in valid_languages.items():
+            create_translations_pr(
+                username=gh_input["username"],
+                token=gh_input["token"],
+                source_repo=gh_input["source_repo"],
+                source_folder=gh_input["source_folder"],
+                source_ref=gh_input["source_ref"],
+                translations_repo=gh_input["translations_repo"],
+                translations_folder=gh_input["translations_folder"],
+                translations_ref=gh_input["translations_ref"],
+                name=gh_input["name"],
+                email=gh_input["email"],
+                language=data["language_name"],
+            )
+            print(valid_languages)
     except Exception as e:
         print("Error: ", e)
         print(traceback.format_exc())

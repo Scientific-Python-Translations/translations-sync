@@ -5,6 +5,21 @@ inputs:
   source-repo:
     description: "Source repository"
     required: true
+  source-folder:
+    description: "Source folder"
+    required: true
+  source-ref:
+    description: "Source reference"
+    default: "main"
+  translations-repo:
+    description: "Translations repository"
+    required: true
+  translations-folder:
+    description: "Translations folder"
+    required: true
+  translations-ref:
+    description: "Translations reference"
+    default: "main"
   translation-percentage:
     description: "Minimum value of language translation to create a PR e.g. '98'"
     required: true
@@ -54,6 +69,11 @@ runs:
       shell: bash
       env:
         INPUT_SOURCE-REPO: ${{ inputs.SOURCE-REPO }}
+        INPUT_SOURCE-FOLDER: ${{ inputs.SOURCE-FOLDER }}
+        INPUT_SOURCE-REF: ${{ inputs.SOURCE-REF }}
+        INPUT_TRANSLATIONS-REPO: ${{ inputs.TRANSLATIONS-REPO }}
+        INPUT_TRANSLATIONS-FOLDER: ${{ inputs.TRANSLATIONS-FOLDER }}
+        INPUT_TRANSLATIONS-REF: ${{ inputs.TRANSLATIONS-REF }}
         INPUT_CROWDIN-PROJECT: ${{ inputs.CROWDIN-PROJECT }}
         INPUT_APPROVAL-PERCENTAGE: ${{ inputs.APPROVAL-PERCENTAGE }}
         INPUT_TRANSLATION-PERCENTAGE: ${{ inputs.TRANSLATION-PERCENTAGE }}

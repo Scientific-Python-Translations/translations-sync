@@ -20,9 +20,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           source-repo: "goanpeca/scipy.org"
+          source-folder: "/scipy.org/content/en/"
+          source-ref: "main"
+          translations-repo: "Scientific-Python-Translations/scipy.org-translations"
+          translations-folder: "scipy.org-translations/content/en/"
+          translations-ref: "main"
           crowdin-project: "scipy.org"
           translation-percentage: "90"
-          approval-percentage: "30"
+          approval-percentage: "0"
           use-precommit: "true"
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
