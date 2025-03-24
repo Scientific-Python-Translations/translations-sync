@@ -1,11 +1,28 @@
-import json
 import os
 import traceback
+import tempfile
 from datetime import datetime
 from subprocess import Popen, PIPE
 
 from crowdin_api import CrowdinClient
 from github import Github, Auth
+
+
+# Set the output value by writing to the outputs in the Environment File, mimicking the behavior defined here:
+#  https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-output-parameter
+def set_github_action_output(output_name, output_value):
+    """Set the output value by writing to the outputs in the Environment File.
+
+    Parameters
+    ----------
+    output_name : str
+        Name of the output.
+    output_value : str
+        Value of the output.
+    """
+    f = open(os.path.abspath(os.environ["GITHUB_OUTPUT"]), "a")
+    f.write(f"{output_name}={output_value}")
+    f.close()
 
 
 class ScientificCrowdinClient:
@@ -20,13 +37,6 @@ class ScientificCrowdinClient:
         projects = self._client.projects.with_fetch_all().list_projects()
         for project in projects["data"]:
             result[project["data"]["name"]] = project["data"]["id"]
-        return result
-
-    def get_languages(self):
-        result = {}
-        projects = self._client.projects.with_fetch_all().list_projects()
-        for project in projects["data"]:
-            result[project["data"]["name"]] = project["data"]["targetLanguageIds"]
         return result
 
     def get_project_status(self, project):
@@ -47,173 +57,40 @@ class ScientificCrowdinClient:
                 }
         return results
 
-    def get_projects_status(self):
-        for project, project_id in self.get_projects().items():
-            languages = self._client.translation_status.get_project_progress(
-                project_id
-            )["data"]
-            for language in languages:
-                language_name = language["data"]["language"]["name"]
-                language_id = language["data"]["language"]["id"]
-                progress = language["data"]["translationProgress"]
-                approval = language["data"]["approvalProgress"]
-                if progress > 0:
-                    print(
-                        f"{project} - {language_name} ({language_id}) - {progress}% / {approval}%"
-                    )
-            # print(json.dumps(languages, indent=4, default=str))
-
-    def get_members(self):
-        for project, project_id in self.get_projects().items():
-            print(f"\n# {project}")
-            members = self._client.users.list_project_members(project_id)["data"]
-            for member in members:
-                roles = member["data"]["roles"]
-                permissions = member["data"]["permissions"]
-                if roles and permissions:
-                    role_names = ", ".join([role["name"] for role in roles])
-                    permission_names = ", ".join([perm for perm in permissions])
-                    # member_id = member["data"]["id"]
-                    print(
-                        f"{member['data']['username']} ({role_names}) {permission_names}"
-                    )
-
-            # print(json.dumps(members, indent=4, default=str))
-
-    def get_translators(self):
-        results = {}
-        languages = self.get_languages()
-        for project, project_id in sorted(self.get_projects().items()):
-            results[project] = {}
-            print(f"\n\n{project}")
-            langs = languages[project]
-            for lang in sorted(langs):
-                results[project][lang] = {}
-                users = set([])
-                translation_ids = set([])
-                offset = 0
-                limit = 500
-                while True:
-                    items = self._client.string_translations.list_language_translations(
-                        lang, project_id, limit=limit, offset=offset
-                    )
-                    if data := items["data"]:
-                        # print(data)
-                        for item in data:
-                            users.add(item["data"]["user"]["username"])
-                            translation_ids.add(item["data"]["translationId"])
-                        # print(items['pagination'], items['data'])
-                        offset += limit
-                    else:
-                        if users:
-                            results[project][lang]["translators"] = sorted(users)
-                            results[project][lang]["translation_ids"] = sorted(
-                                translation_ids
-                            )
-                            print(lang, sorted(users))
-                        else:
-                            results[project][lang]["translation_ids"] = []
-                        break
-
-        return results
-
-    def get_translations(self):
-        results = {}
-        languages = self.get_languages()
-        for project, project_id in sorted(self.get_projects().items()):
-            print(f"\n\n{project}")
-            results[project] = {}
-            langs = languages[project]
-            for lang in sorted(langs):
-                results[project][lang] = []
-                users = set([])
-                offset = 0
-                limit = 500
-                while True:
-                    items = self._client.string_translations.list_language_translations(
-                        lang, project_id, limit=limit, offset=offset
-                    )
-                    if data := items["data"]:
-                        # print(data)
-                        for item in data:
-                            # print(item['data'])
-                            results[project][lang].append(item["data"]["translationId"])
-                            users.add(item["data"]["user"]["username"])
-                        # print(items['pagination'], items['data'])
-                        offset += limit
-                    else:
-                        if users:
-                            print(lang, sorted(users))
-                        break
-
-        return results
-        # FIXME: Return something useful
-
-    def get_reviewers(self, translators):
-        languages = self.get_languages()
-        for project, project_id in sorted(self.get_projects().items()):
-            print(f"\n\n{project}")
-            langs = languages[project]
-            for lang in sorted(langs):
-                # users = set([])
-                translation_ids = translators[project][lang]["translation_ids"]
-                # offset = 0
-                # limit = 500
-                for trans_id in translation_ids:
-                    items = self._client.string_translations.list_translation_approvals(
-                        projectId=project_id, translationId=trans_id
-                    )
-                    if data := items["data"]:
-                        print(data)
-                # while True:
-                #     items = self._client.string_translations.list_translation_approvals(projectId=project_id, languageId=lang, translationId=, limit=limit, offset=offset)
-                #     if data := items['data']:
-                #         # print(data)
-                #         # for item in data:
-                #         #     users.add(item['data']['user']['username'])
-                #         print(items['pagination'], items['data'])
-                #         offset += limit
-                #     else:
-                #         # if users:
-                #             # print(lang, sorted(users))
-                #         break
-
     def get_valid_languages(
-        self, project_name, translation_percentage, approval_percentage
+        self, project_name: str, translation_percentage: int, approval_percentage: int
     ):
-        """"""
+        """Get valid languages based on translation and approval percentage.
+
+        Parameters
+        ----------
+        project_name : str
+            Name of the project.
+        translation_percentage : int
+            Minimum translation percentage.
+        approval_percentage : int
+            Minimum approval percentage.
+
+        Returns
+        -------
+        valid_languages : dict
+            Dictionary of valid languages.
+        """
         valid_languages = {}
         project_languages = self.get_project_status(project_name)
-        print(json.dumps(project_languages, sort_keys=True, indent=4))
+        # print(json.dumps(project_languages, sort_keys=True, indent=4))
         for language_id, data in project_languages.items():
             approval = data["approval"]
             progress = data["progress"]
             language_name = data["language_name"]
             if progress >= translation_percentage and approval >= approval_percentage:
-                print(f"\n{language_id} {language_name}:  {progress}% / {approval}%")
+                # print(f"\n{language_id} {language_name}:  {progress}% / {approval}%")
                 valid_languages[language_id] = {
                     "language_name": language_name,
                     "progress": progress,
                     "approval": approval,
                 }
         return valid_languages
-
-
-# Set the output value by writing to the outputs in the Environment File, mimicking the behavior defined here:
-#  https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-output-parameter
-def set_github_action_output(output_name, output_value):
-    """Set the output value by writing to the outputs in the Environment File.
-
-    Parameters
-    ----------
-    output_name : str
-        Name of the output.
-    output_value : str
-        Value of the output.
-    """
-    f = open(os.path.abspath(os.environ["GITHUB_OUTPUT"]), "a")
-    f.write(f"{output_name}={output_value}")
-    f.close()
 
 
 def run(cmds):
@@ -446,6 +323,7 @@ def filter_commits(filename: str, language: str) -> None:
         Crowdin language.
     """
     # language = language_code_map[language_code.lower()]
+    print(filename, language)
     with open(filename) as f:
         lines = [line.strip().split(maxsplit=2) for line in f.readlines()]
     lines = [
@@ -468,7 +346,154 @@ def create_translations_pr(
     name,
     email,
     language,
+    language_code,
 ):
+    """Create a pull request for translations.
+
+    Parameters
+    ----------
+    username : str
+        Username of the source repository.
+    token : str
+        Personal access token of the source repository.
+    source_repo : str
+        Source repository name.
+    source_folder : str
+        Source folder name.
+    source_ref : str
+        Source branch name.
+    translations_repo : str
+        .
+    translations_folder : str
+        .
+    translations_ref : str
+        .
+    name : str
+        Name of the bot account.
+    email : str
+        Email of the bot account.
+    language : str
+        Language name.
+
+    Returns
+    -------
+    out : str
+        Output of the command.
+    """
+    upstream_remote = "origin"
+    source_branch = translations_ref
+    crowdin_branch = "l10n_main"
+
+    # TODO: Change working dir to the translations repo
+
+    # Make sure source branch is up to date with upstream
+    run(["git", "checkout", source_branch])
+    run(["git", "fetch", upstream_remote])
+    run(["git", "merge", "--ff-only", f"{upstream_remote}/{source_branch}"])
+
+    # Make sure the corresponding Crowdin branch is up to date
+    run(["git", "checkout", crowdin_branch])
+    run(["git", "merge", "--ff-only", f"{upstream_remote}/{crowdin_branch}"])
+
+    # Check that crowdin branch has no merge conflicts with respect to the source branch
+    run(["git", "checkout", source_branch])
+    _, _, rc = run(["git", "merge", "--no-commit", "--no-ff", crowdin_branch])
+    if rc != 0:
+        raise Exception("Merge conflict between source and crowdin branch.")
+
+    run(["git", "merge", "--abort"])
+    run(["git", "checkout", crowdin_branch])
+
+    date_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    branch_name = f"{crowdin_branch}_{language_code}_{date_time}"
+
+    # Checkout a new branch for these translations
+    run(["git", "checkout", "-b", branch_name])
+
+    # Run interactive rebase and cherry-pick only the commits for the language
+    _, temp_bash_script = tempfile.mkstemp(
+        suffix=".sh",
+    )
+    print(temp_bash_script)
+
+    content = """#!/bin/bash
+GIT_SEQUENCE_EDITOR="f() {{
+    filename=\\$1
+    python3 -c \\"
+import sys
+sys.path.insert(0, '{script_location}')
+from main import filter_commits
+
+filter_commits('\\$filename', '{language}')
+\\"
+}}; f" git rebase -i {source_branch}"""
+    new_content = content.format(
+        script_location=os.path.dirname(__file__),
+        language="Spanish",
+        source_branch="main",
+    )
+
+    with open(temp_bash_script, "w") as f:
+        f.write(new_content)
+
+    out, err, rc = run(["bash", temp_bash_script])
+
+    if rc == 0:
+        run(["git", "push", "-u", "origin", branch_name])
+
+        os.environ["GITHUB_TOKEN"] = token
+        run(
+            [
+                "gh",
+                "pr",
+                "create",
+                "--base",
+                "main",
+                "--head",
+                branch_name,
+                "--title",
+                f"Testing PR generation for {language}",
+                "--body",
+                f"Testing PR generation for {language}",
+            ]
+        )
+    else:
+        if rc != 0:
+            raise Exception("Cherry pick for language failed!")
+
+
+def configure_git_and_checkout_repos(
+    username,
+    token,
+    source_repo,
+    source_ref,
+    translations_repo,
+    translations_ref,
+    name,
+    email,
+):
+    """
+    Configure git information and checkout repositories.
+
+    Parameters
+    ----------
+    username : str
+        Username of the source repository.
+    token : str
+        Personal access token of the source repository.
+    source_repo : str
+        Source repository name.
+    source_ref : str
+        Source branch name.
+    translations_repo : str
+        .
+    translations_ref : str
+        .
+    name : str
+        Name of the bot account.
+    email : str
+        Email of the bot account.
+    """
     # Configure git information
     run(["git", "config", "--global", "user.name", f'"{name}"'])
     run(["git", "config", "--global", "user.email", f'"{email}"'])
@@ -508,50 +533,8 @@ def create_translations_pr(
 
     run(cmds)
 
-
-"""
-../automations/scripts/create_branch_for_language.sh origin main l10n_main ${{ github.event.inputs.language_code }}
-          branch_name=$(git rev-parse --abbrev-ref HEAD)
-          git push -u origin $branch_name
-          echo "BRANCH_NAME=$branch_name" >> $GITHUB_ENV
-
-
-# Make sure source branch is up to date with upstream
-git checkout $source_branch
-git fetch $upstream_remote
-git merge --ff-only "${upstream_remote}/${source_branch}"
-
-# Make sure the corresponding Crowdin branch is up to date
-git checkout $crowdin_branch
-git merge --ff-only "${upstream_remote}/${crowdin_branch}"
-
-# Check that crowdin branch has no merge conflicts with respect to the source branch
-git checkout $source_branch
-merge_output=$(git merge --no-commit --no-ff $crowdin_branch)
-git merge --abort
-
-git checkout $crowdin_branch
-
-# Generate a timestamp for use in branch name
-timestamp=$(date +%Y_%m_%d_%H_%M_%S)
-
-# Checkout a new branch for these translations
-new_branch="${crowdin_branch}_${language_code}_${timestamp}"
-git checkout -b $new_branch
-
-# Perform scripted interactive rebase, taking only commits
-# for the language of interest.
-GIT_SEQUENCE_EDITOR="f() {
-    filename=\$1
-    python3 -c \"
-import sys
-sys.path.insert(0, '$script_location')
-from git_tools import filter_commits
-
-filter_commits('\$filename', '$language_code')
-\"
-}; f" git rebase -i "$source_branch"
-"""
+    os.chdir(translations_repo.split("/")[1])
+    print("\n\ngetcwd:", os.getcwd())
 
 
 def main():
@@ -565,7 +548,17 @@ def main():
             int(gh_input["translation_percentage"]),
             int(gh_input["approval_percentage"]),
         )
-        for _language_id, data in valid_languages.items():
+        configure_git_and_checkout_repos(
+            username=gh_input["username"],
+            token=gh_input["token"],
+            source_repo=gh_input["source_repo"],
+            source_ref=gh_input["source_ref"],
+            translations_repo=gh_input["translations_repo"],
+            translations_ref=gh_input["translations_ref"],
+            name=gh_input["name"],
+            email=gh_input["email"],
+        )
+        for language_code, data in valid_languages.items():
             create_translations_pr(
                 username=gh_input["username"],
                 token=gh_input["token"],
@@ -578,8 +571,9 @@ def main():
                 name=gh_input["name"],
                 email=gh_input["email"],
                 language=data["language_name"],
+                language_code=language_code,
             )
-            print(valid_languages)
+            break
     except Exception as e:
         print("Error: ", e)
         print(traceback.format_exc())

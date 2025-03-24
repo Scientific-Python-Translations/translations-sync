@@ -20,7 +20,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           source-repo: "goanpeca/scipy.org"
-          source-folder: "/scipy.org/content/en/"
+          source-folder: "scipy.org/content/en/"
           source-ref: "main"
           translations-repo: "Scientific-Python-Translations/scipy.org-translations"
           translations-folder: "scipy.org-translations/content/en/"
