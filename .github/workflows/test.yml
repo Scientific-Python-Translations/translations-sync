@@ -31,5 +31,5 @@ jobs:
           use-precommit: "true"
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
-          token: "token"  # ${{ secrets.TOKEN }}
+          token: ${{ secrets.TOKEN }}
           crowdin-token: ${{ secrets.CROWDIN_TOKEN }}
