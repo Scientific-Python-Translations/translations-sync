@@ -27,7 +27,7 @@ inputs:
     description: "Minimum value of language approval to create a PR e.g. '95'"
     required: true
   use-precommit:
-    description: "Apply pre-commit before submitting the final PR. Default is 'false'."
+    description: "Apply pre-commit before submitting the final PR upstream. Default is 'false'."
     default: "false"
   gpg-private-key:
     description: "GPG private key of the user/email making the commits"

@@ -160,6 +160,8 @@ def configure_git_and_checkout_repos(
         Email of the bot account.
     """
     print("\n\n### Configure git information and checkout repositories")
+    print("\n\ngetcwd:", os.getcwd())
+
     # Configure git information
     run(["git", "config", "--global", "user.name", f'"{name}"'])
     run(["git", "config", "--global", "user.email", f'"{email}"'])
@@ -227,6 +229,10 @@ def filter_commits(filename: str, language: str) -> None:
     output = "\n".join(" ".join(line) for line in lines) + "\n"
     with open(filename, "w") as f:
         f.write(output)
+
+
+def create_pr_and_verify(self):
+    pass
 
 
 def create_translations_pr(
