@@ -161,6 +161,7 @@ def configure_git_and_checkout_repos(
     """
     print("\n\n### Configure git information and checkout repositories")
     print("\n\ngetcwd:", os.getcwd())
+    run(["ls"])
 
     # Configure git information
     run(["git", "config", "--global", "user.name", f'"{name}"'])
@@ -183,6 +184,8 @@ def configure_git_and_checkout_repos(
         ]
 
     run(cmds)
+    print("\n\ngetcwd:", os.getcwd())
+    run(["ls"])
 
     if translations_ref:
         cmds = [
@@ -203,6 +206,7 @@ def configure_git_and_checkout_repos(
 
     os.chdir(translations_repo.split("/")[1])
     print("\n\ngetcwd:", os.getcwd())
+    run(["ls"])
 
 
 def filter_commits(filename: str, language: str) -> None:
@@ -339,6 +343,9 @@ filter_commits('\\$filename', '{language}')
         f.write(new_content)
 
     out, err, rc = run(["bash", temp_bash_script])
+
+    # temp break
+    return
 
     if rc == 0:
         run(["git", "push", "-u", "origin", branch_name])
