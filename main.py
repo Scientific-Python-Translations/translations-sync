@@ -10,29 +10,6 @@ from crowdin_api import CrowdinClient
 from github import Github, Auth
 
 
-example_dict = {
-    "es": [
-        {
-            "name": "Gonzalo Peña",
-            "username": "goanpeca",
-            "img_link": "goanpeca@gmail.com",
-        },
-        {
-            "name": "Gonzalo Peña",
-            "username": "goanpeca",
-            "img_link": "goanpeca@gmail.com",
-        },
-    ],
-    "pt_BR": [
-        {
-            "name": "Gonzalo Peña",
-            "username": "goanpeca",
-            "img_link": "goanpeca@gmail.com",
-        },
-    ],
-}
-
-
 def parse_input() -> dict:
     gh_input = {
         # Automations Bot account
@@ -82,6 +59,28 @@ def run(cmds):
     print("Err: \n", err.decode())
     print("Code: \n", p.returncode)
     return out, err, p.returncode
+
+
+def generate_card(
+    name: str, img_link: str, link: str = "https://scientific-python.crowdin.com"
+) -> str:
+    """
+    Generate a card in TOML format.
+    """
+    toml_card_template = """[[item]]
+type = 'card'
+classcard = 'text-center'
+body = '''{{{{< image >}}}}
+src = '{img_link}'
+alt = 'Avatar of {name}'
+{{{{< /image >}}}}
+{name}'''
+link = '{link}'"""
+    return toml_card_template.format(
+        img_link=img_link,
+        name=name,
+        link=link,
+    )
 
 
 class ScientificCrowdinClient:
@@ -560,7 +559,9 @@ filter_commits('\\$filename', '{language}')
             print(out, err)
 
 
-def create_translators_file(translators, token, name, email, translations_repo):
+def create_translators_file(
+    translators, token, name, email, translations_repo, create_toml_file=False
+):
     """Create a file with the translators information.
 
     Parameters
@@ -598,6 +599,21 @@ def create_translators_file(translators, token, name, email, translations_repo):
             )
         )
 
+    if create_toml_file:
+        all_translators = []
+        for lang, translators_list in existing_translators.items():
+            for translator in translators_list:
+                all_translators.append(
+                    generate_card(
+                        translator["name"],
+                        translator["img_link"],
+                        translator["username"],
+                    )
+                )
+
+        with open("translations-team.toml", "w") as fh:
+            fh.write("\n\n".join(all_translators))
+
     branch_name = "add/translators-file"
     pr_title = "Add/update traslations file."
     run(["git", "checkout", "-b", "add/translators-file"])
@@ -633,6 +649,8 @@ def create_translators_file(translators, token, name, email, translations_repo):
         # run(["gh", "pr", "merge", branch_name, "--auto", "--squash", '--delete-branch'])
     else:
         print("\n\nNot all commits are signed, abort merge!")
+
+    return existing_translators
 
 
 def main():
@@ -682,6 +700,7 @@ def main():
             name=gh_input["name"],
             email=gh_input["email"],
             translations_repo=gh_input["translations_repo"],
+            create_toml_file=True,
         )
     except Exception as e:
         print("Error: ", e)
