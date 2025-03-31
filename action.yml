@@ -29,6 +29,9 @@ inputs:
   use-precommit:
     description: "Apply pre-commit before submitting the final PR upstream. Default is 'false'."
     default: "false"
+  create-toml-file:
+    description: "Create toml file with translators information."
+    default: "false"
   gpg-private-key:
     description: "GPG private key of the user/email making the commits"
     required: true
@@ -81,6 +84,7 @@ runs:
         INPUT_APPROVAL-PERCENTAGE: ${{ inputs.APPROVAL-PERCENTAGE }}
         INPUT_TRANSLATION-PERCENTAGE: ${{ inputs.TRANSLATION-PERCENTAGE }}
         INPUT_USE-PRECOMMIT: ${{ inputs.USE-PRECOMMIT }}
+        INPUT_CREATE-TOML-FILE: ${{ inputs.CREATE-TOML-FILE }}
         GPG_NAME: ${{ steps.import-gpg.outputs.name }}
         GPG_EMAIL: ${{ steps.import-gpg.outputs.email }}
         TOKEN: ${{ inputs.TOKEN }}

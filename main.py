@@ -28,6 +28,7 @@ def parse_input() -> dict:
         "approval_percentage": os.environ["INPUT_APPROVAL-PERCENTAGE"],
         "translation_percentage": os.environ["INPUT_TRANSLATION-PERCENTAGE"],
         "use_precommit": os.environ["INPUT_USE-PRECOMMIT"].lower() == "true",
+        "create_toml_file": os.environ["INPUT_CREATE-TOML-FILE"].lower() == "true",
         # Provided by gpg action based on organization secrets
         "name": os.environ["GPG_NAME"],
         "email": os.environ["GPG_EMAIL"],
@@ -605,9 +606,8 @@ def create_translators_file(
             for translator in translators_list:
                 all_translators.append(
                     generate_card(
-                        translator["name"],
-                        translator["img_link"],
-                        translator["username"],
+                        name=translator["name"],
+                        img_link=translator["img_link"],
                     )
                 )
 
@@ -650,6 +650,7 @@ def create_translators_file(
     else:
         print("\n\nNot all commits are signed, abort merge!")
 
+    run(["git", "checkout", "main"])
     return existing_translators
 
 
@@ -700,7 +701,7 @@ def main():
             name=gh_input["name"],
             email=gh_input["email"],
             translations_repo=gh_input["translations_repo"],
-            create_toml_file=True,
+            create_toml_file=gh_input["create_toml_file"],
         )
     except Exception as e:
         print("Error: ", e)
