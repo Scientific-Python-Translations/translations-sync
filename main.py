@@ -602,17 +602,20 @@ def create_translators_file(
 
     if create_toml_file:
         all_translators = []
+        all_cards = []
         for lang, translators_list in existing_translators.items():
             for translator in translators_list:
-                all_translators.append(
-                    generate_card(
-                        name=translator["name"],
-                        img_link=translator["img_link"],
+                if translator not in all_translators:
+                    all_translators.append(translator)
+                    all_cards.append(
+                        generate_card(
+                            name=translator["name"],
+                            img_link=translator["img_link"],
+                        )
                     )
-                )
 
         with open("translations-team.toml", "w") as fh:
-            fh.write("\n\n".join(all_translators))
+            fh.write("\n\n".join(all_cards))
 
     branch_name = "add/translators-file"
     pr_title = "Add/update traslations file."
