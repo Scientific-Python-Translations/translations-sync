@@ -565,15 +565,38 @@ def create_translators_file(translators, token, name, email, translations_repo):
 
     Parameters
     ----------
-    None
+    translators : dict
+        Dictionary with the translators information.
+    token : str
+        Personal access token of the source repository.
+    name : str
+        Name of the bot account.
+    email : str
+        Email of the bot account.
+    translations_repo : str
+        .
 
-    Returns
-    -------
-    None
     """
     print("\n\n### Creating translators file")
+    existing_translators = translators
+    if os.path.exists("translators.yml"):
+        with open("translators.yml") as fh:
+            existing_translators = yaml.safe_load(fh)
+
+        for lang, translators_list in translators.items():
+            if lang in existing_translators:
+                for translator in translators_list:
+                    if translator not in existing_translators[lang]:
+                        existing_translators[lang].append(translator)
+            else:
+                existing_translators[lang] = translators_list
+
     with open("translators.yml", "w") as fh:
-        fh.write(yaml.dump(translators, default_flow_style=False, allow_unicode=True))
+        fh.write(
+            yaml.dump(
+                existing_translators, default_flow_style=False, allow_unicode=True
+            )
+        )
 
     branch_name = "add/translators-file"
     pr_title = "Add/update traslations file."
