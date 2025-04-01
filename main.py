@@ -65,7 +65,9 @@ def run(cmds: list[str]) -> tuple[str, str, int]:
 
 
 def generate_card(
-    name: str, img_link: str, link: str = "https://scientific-python.crowdin.com"
+    name: str,
+    img_link: str,
+    link: str = "https://scientific-python-translations.github.io/",
 ) -> str:
     """
     Generate a card in TOML format.
