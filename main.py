@@ -6,7 +6,7 @@ from datetime import datetime
 from subprocess import Popen, PIPE
 from pathlib import Path
 
-from crowdin_api import CrowdinClient
+from crowdin_api import CrowdinClient  # type: ignore
 from github import Github, Auth
 
 
@@ -36,7 +36,7 @@ def parse_input() -> dict:
     return gh_input
 
 
-def run(cmds):
+def run(cmds: list[str]) -> tuple[str, str, int]:
     """Run a command in the shell and print output.
 
     Parameters
@@ -55,11 +55,13 @@ def run(cmds):
     """
     p = Popen(cmds, stdout=PIPE, stderr=PIPE)
     out, err = p.communicate()
+    stdout = out.decode()
+    stderr = err.decode()
     print("\n\n\nCmd: \n" + " ".join(cmds))
-    print("Out: \n", out.decode())
-    print("Err: \n", err.decode())
+    print("Out: \n", stdout)
+    print("Err: \n", stderr)
     print("Code: \n", p.returncode)
-    return out, err, p.returncode
+    return stdout, stderr, p.returncode
 
 
 def generate_card(
@@ -86,19 +88,21 @@ link = '{link}'"""
 
 class ScientificCrowdinClient:
 
-    def __init__(self, token, organization):
+    def __init__(self, token: str, organization: str):
         self._token = token
         self._organization = organization
         self._client = CrowdinClient(token=token, organization=organization)
 
-    def get_projects(self):
+    def get_projects(self) -> dict:
+        """Get projects from Crowdin."""
         result = {}
         projects = self._client.projects.with_fetch_all().list_projects()
         for project in projects["data"]:
             result[project["data"]["name"]] = project["data"]["id"]
         return result
 
-    def get_project_id(self, project_name):
+    def get_project_id(self, project_name: str) -> int:
+        """Get project ID from Crowdin."""
         projects = self._client.projects.with_fetch_all().list_projects()
         for project in projects["data"]:
             if project["data"]["name"] == project_name:
@@ -106,10 +110,11 @@ class ScientificCrowdinClient:
         else:
             raise ValueError(f"Project '{project_name}' not found.")
 
-    def get_project_status(self, project):
+    def get_project_status(self, project_name: str) -> dict:
+        """Get project status from Crowdin."""
         results = {}
-        for project_name, project_id in self.get_projects().items():
-            if project != project_name:
+        for p_name, project_id in self.get_projects().items():
+            if project_name != p_name:
                 continue
 
             languages = self._client.translation_status.get_project_progress(
@@ -124,7 +129,8 @@ class ScientificCrowdinClient:
                 }
         return results
 
-    def get_project_languages(self, project_name):
+    def get_project_languages(self, project_name: str) -> list:
+        """Get project languages from Crowdin."""
         projects = self._client.projects.with_fetch_all().list_projects()
         for project in projects["data"]:
             if project["data"]["name"] == project_name:
@@ -134,7 +140,7 @@ class ScientificCrowdinClient:
 
     def get_valid_languages(
         self, project_name: str, translation_percentage: int, approval_percentage: int
-    ):
+    ) -> dict:
         """Get valid languages based on translation and approval percentage.
 
         Parameters
@@ -167,8 +173,9 @@ class ScientificCrowdinClient:
                 }
         return valid_languages
 
-    def get_project_translators(self, project_name):
-        results = {}
+    def get_project_translators(self, project_name: str) -> dict:
+        """Get project translators from Crowdin."""
+        results: dict = {}
         project_id = self.get_project_id(project_name)
         languages = self.get_project_languages(project_name)
         for lang in sorted(languages):
@@ -198,15 +205,15 @@ class ScientificCrowdinClient:
 
 
 def configure_git_and_checkout_repos(
-    username,
-    token,
-    source_repo,
-    source_ref,
-    translations_repo,
-    translations_ref,
-    name,
-    email,
-):
+    username: str,
+    token: str,
+    source_repo: str,
+    source_ref: str,
+    translations_repo: str,
+    translations_ref: str,
+    name: str,
+    email: str,
+) -> None:
     """
     Configure git information and checkout repositories.
 
@@ -284,7 +291,9 @@ def configure_git_and_checkout_repos(
     run(["ls"])
 
 
-def verify_signature(token, repo, name, email, pr_title, branch_name) -> bool:
+def verify_signature(
+    token: str, repo: str, name: str, email: str, pr_title: str, branch_name: str
+) -> bool:
     """Verify the signature of the pull request.
 
     Parameters
@@ -304,11 +313,9 @@ def verify_signature(token, repo, name, email, pr_title, branch_name) -> bool:
     """
     auth = Auth.Token(token)
     g = Github(auth=auth)
-    repo = g.get_repo(repo)
-    pulls = repo.get_pulls(state="open", sort="created", direction="desc")
+    pulls = g.get_repo(repo).get_pulls(state="open", sort="created", direction="desc")
     pr_branch = None
     signed_by = f"{name} <{email}>"
-
     for pr in pulls:
         pr_branch = pr.head.ref
         if pr.title == pr_title and pr_branch == branch_name:
@@ -319,14 +326,14 @@ def verify_signature(token, repo, name, email, pr_title, branch_name) -> bool:
             for commit in pr.get_commits():
                 print(
                     [
-                        commit.commit.verification.verified,
+                        commit.commit.verification.verified,  # type: ignore
                         signed_by,
-                        commit.commit.verification.payload,
+                        commit.commit.verification.payload,  # type: ignore
                     ]
                 )
                 checks.append(
-                    commit.commit.verification.verified
-                    and signed_by in commit.commit.verification.payload
+                    commit.commit.verification.verified  # type: ignore
+                    and signed_by in commit.commit.verification.payload  # type: ignore
                 )
             break
 
@@ -360,20 +367,20 @@ def filter_commits(filename: str, language: str) -> None:
 
 
 def create_translations_pr(
-    username,
-    token,
-    source_repo,
-    source_folder,
-    source_ref,
-    translations_repo,
-    translations_folder,
-    translations_ref,
-    name,
-    email,
-    language,
-    language_code,
-    use_precommit,
-):
+    username: str,
+    token: str,
+    source_repo: str,
+    source_folder: str,
+    source_ref: str,
+    translations_repo: str,
+    translations_folder: str,
+    translations_ref: str,
+    name: str,
+    email: str,
+    language: str,
+    language_code: str,
+    use_precommit: bool = False,
+) -> None:
     """Create a pull request for translations.
 
     Parameters
@@ -553,8 +560,13 @@ filter_commits('\\$filename', '{language}')
 
 
 def create_translators_file(
-    translators, token, name, email, translations_repo, create_toml_file=False
-):
+    translators: dict,
+    token: str,
+    name: str,
+    email: str,
+    translations_repo: str,
+    create_toml_file: bool = False,
+) -> dict:
     """Create a file with the translators information.
 
     Parameters
@@ -569,7 +581,13 @@ def create_translators_file(
         Email of the bot account.
     translations_repo : str
         .
+    create_toml_file : bool
+        Whether to create a TOML file with the translators information.
 
+    Returns
+    -------
+    translators : dict
+        Dictionary with the updated translators information.
     """
     print("\n\n### Creating translators file")
     existing_translators = translators
@@ -649,7 +667,8 @@ def create_translators_file(
     return existing_translators
 
 
-def main():
+def main() -> None:
+    """Main function to run the script."""
     try:
         gh_input = parse_input()
         crowdin_project = gh_input["crowdin_project"]
