@@ -523,14 +523,18 @@ filter_commits('\\$filename', '{language}')
         run(["rsync", "-av", "--delete", str(trans_path), str(dest_path)])
 
         run(["git", "add", "."])
-        if use_precommit:
-            run(["pre-commit", "run", "--all-files"])
-            run(["git", "add", "."])
-
         _out, _err, rc = run(["git", "diff", "--staged", "--quiet"])
         pr_title = f"Add translations for {language}"
         if rc:
             run(["git", "commit", "-S", "-m", f"Add {language} translations."])
+
+            if use_precommit:
+                run(["pre-commit", "run", "--all-files"])
+                run(["git", "add", "."])
+                _out, _err, rc = run(["git", "diff", "--staged", "--quiet"])
+                if rc:
+                    run(["git", "commit", "-S", "-m", "Run pre-commit."])
+
             run(["git", "push", "-u", "origin", translations_branch_name, "--force"])
             os.environ["GITHUB_TOKEN"] = token
             # gh pr create --repo owner/repo --base master --head user:patch-1
