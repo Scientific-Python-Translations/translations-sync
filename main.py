@@ -336,7 +336,7 @@ def verify_signature(token, repo, name, email, pr_title, branch_name) -> bool:
 
 
 def filter_commits(filename: str, language: str) -> None:
-    """Edits the git-rebase-todo file to pick only commits for one language
+    """Edits the git-rebase-todo file to pick only commits for one language.
 
     Used in GIT_SEQUENCE_EDITOR for scripted interactive rebase.
 
@@ -347,8 +347,6 @@ def filter_commits(filename: str, language: str) -> None:
     language : str
         Crowdin language.
     """
-    # language = language_code_map[language_code.lower()]
-    # print(filename, language)
     with open(filename) as f:
         lines = [line.strip().split(maxsplit=2) for line in f.readlines()]
     lines = [
@@ -359,10 +357,6 @@ def filter_commits(filename: str, language: str) -> None:
     output = "\n".join(" ".join(line) for line in lines) + "\n"
     with open(filename, "w") as f:
         f.write(output)
-
-
-def create_pr_and_verify(self):
-    pass
 
 
 def create_translations_pr(
@@ -515,9 +509,7 @@ filter_commits('\\$filename', '{language}')
         trans_path = (
             base_folder.parent / translations_folder
         ).parent / two_letter_lang_code
-        dest_path = (
-            base_folder.parent / source_folder
-        ).parent  # / two_letter_lang_code
+        dest_path = (base_folder.parent / source_folder).parent
         os.chdir(path)
         run(["git", "checkout", "-b", translations_branch_name])
         print("PATH:", trans_path)
@@ -682,6 +674,14 @@ def main():
             name=gh_input["name"],
             email=gh_input["email"],
         )
+        create_translators_file(
+            translators,
+            token=gh_input["token"],
+            name=gh_input["name"],
+            email=gh_input["email"],
+            translations_repo=gh_input["translations_repo"],
+            create_toml_file=gh_input["create_toml_file"],
+        )
         # for language_code, data in valid_languages.items():
         #     create_translations_pr(
         #         username=gh_input["username"],
@@ -698,14 +698,6 @@ def main():
         #         language_code=language_code,
         #         use_precommit=gh_input["use_precommit"],
         #     )
-        create_translators_file(
-            translators,
-            token=gh_input["token"],
-            name=gh_input["name"],
-            email=gh_input["email"],
-            translations_repo=gh_input["translations_repo"],
-            create_toml_file=gh_input["create_toml_file"],
-        )
     except Exception as e:
         print("Error: ", e)
         print(traceback.format_exc())
