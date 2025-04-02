@@ -318,13 +318,12 @@ def verify_signature(
     pulls = g.get_repo(repo).get_pulls(state="open", sort="created", direction="desc")
     pr_branch = None
     signed_by = f"{name} <{email}>"
+    checks = []
     for pr in pulls:
         pr_branch = pr.head.ref
         if pr.title == pr_title and pr_branch == branch_name:
             print("\n\nFound PR try to merge it!")
-
             # Check if commits are signed
-            checks = []
             for commit in pr.get_commits():
                 print(
                     [
@@ -340,7 +339,6 @@ def verify_signature(
             break
 
     g.close()
-
     return all(checks)
 
 
