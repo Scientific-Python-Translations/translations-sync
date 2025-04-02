@@ -45,7 +45,7 @@ inputs:
     description: "Crowdin personal access token of the account performing the github operations"
     required: true
   crowdin-project:
-    description: "TODO:"
+    description: "Name of the associated crowdin project. This is used to fetch the latest translators from crowdin. This is case sensitive."
     required: true
 runs:
   using: "composite"

@@ -522,8 +522,7 @@ filter_commits('\\$filename', '{language}')
         os.chdir(path)
         run(["git", "checkout", "-b", translations_branch_name])
         print("PATH:", trans_path)
-        run(["rsync", "-av", "--delete", str(trans_path), str(dest_path)])
-
+        run(["rsync", "-av", "--delete", str(trans_path) + "/", str(dest_path)])
         run(["git", "add", "."])
         _out, _err, rc = run(["git", "diff", "--staged", "--quiet"])
         pr_title = f"Add translations for {language}"
@@ -634,7 +633,7 @@ def create_translators_file(
             fh.write("\n\n".join(all_cards))
 
     branch_name = "add/translators-file"
-    pr_title = "Add/update traslations file."
+    pr_title = "Add/update translators file."
     run(["git", "checkout", "-b", "add/translators-file"])
     run(["git", "add", "."])
     run(["git", "commit", "-S", "-m", pr_title])
