@@ -83,7 +83,7 @@ jobs:
 
 2. **Configure Crowdin**: Integrate your translations repository with Crowdin to manage translations. Ensure that the `translations-folder` is set up correctly for Crowdin.
 
-3. **Set Up the Workflow**: Add the above GitHub Actions workflow to your source repository (e.g., `.github/workflows/sync-content.yml`). This is created automatically if you used the `translations-cookiecutter`.
+3. **Set Up the Workflow**: Add the above GitHub Actions workflow to your source repository (e.g., `.github/workflows/sync-stranslations.yml`). This is created automatically if you used the `translations-cookiecutter`.
 
 ## 🔄 How It Works
 
