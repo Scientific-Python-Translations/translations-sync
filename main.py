@@ -520,7 +520,7 @@ filter_commits('\\$filename', '{language}')
         os.chdir(path)
         run(["git", "checkout", "-b", translations_branch_name])
         print("PATH:", trans_path)
-        run(["rsync", "-av", "--delete", str(trans_path) + "/", str(dest_path)])
+        run(["rsync", "-av", "--delete", str(trans_path), str(dest_path)])
         run(["git", "add", "."])
         _out, _err, rc = run(["git", "diff", "--staged", "--quiet"])
         pr_title = f"Add translations for {language}"

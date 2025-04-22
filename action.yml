@@ -35,9 +35,9 @@ inputs:
   gpg-private-key:
     description: "GPG private key of the user/email making the commits"
     required: true
-  passphrase: 
+  passphrase:
     description: "GPG passphrase of the user/email making the commits"
-    required: true    
+    required: true
   token:
     description: "Github personal access token of the account performing the github operations"
     required: true
@@ -52,7 +52,7 @@ runs:
   steps:
     - uses: actions/checkout@v4
       with:
-        repository: 'Scientific-Python-Translations/translations-sync'
+        repository: "Scientific-Python-Translations/translations-sync"
     - name: Import GPG key
       id: import-gpg
       uses: crazy-max/ghaction-import-gpg@v4
@@ -65,12 +65,12 @@ runs:
     - name: Configure commit signing
       shell: bash
       run: |
-          git config --global user.name "${{ steps.import-gpg.outputs.name }}"
-          git config --global user.email "${{ steps.import-gpg.outputs.email }}"
+        git config --global user.name "${{ steps.import-gpg.outputs.name }}"
+        git config --global user.email "${{ steps.import-gpg.outputs.email }}"
     - name: Configure python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12' # '3.x'
+        python-version: "3.12" # '3.x'
     - name: Run scripts
       shell: bash
       env:
