@@ -19,17 +19,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          source-repo: "goanpeca/scipy.org"
-          source-folder: "scipy.org/content/en/"
+          # Provided by user
+          crowdin-project: "NumPy.Org"
+          source-repo: "numpy/numpy.org"
+          source-folder: "numpy.org/content/en/"
           source-ref: "main"
-          translations-repo: "Scientific-Python-Translations/scipy.org-translations"
-          translations-folder: "scipy.org-translations/content/en/"
+          translations-repo: "Scientific-Python-Translations/numpy.org-translations"
+          translations-folder: "numpy.org-translations/content/en/"
           translations-ref: "main"
-          crowdin-project: "scipy.org"
           translation-percentage: "90"
           approval-percentage: "0"
           use-precommit: "true"
+          # Provided by organization secrets
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
-          token: "Not a real token"
+          token: "not-a-real-token"
           crowdin-token: ${{ secrets.CROWDIN_TOKEN }}
