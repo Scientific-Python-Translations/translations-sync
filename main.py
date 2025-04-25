@@ -490,7 +490,7 @@ filter_commits('\\$filename', '{language}')
     with open(temp_bash_script, "w") as f:
         f.write(new_content)
 
-    out, err, rc = run(["bash", temp_bash_script])
+    out, err, rc_cherry_pick = run(["bash", temp_bash_script])
 
     # Copy files from the source folder to the translations folder
     # that are not in the translations folder
@@ -513,7 +513,11 @@ filter_commits('\\$filename', '{language}')
                 print("\n\nCopying file:", source_copy, dest_copy)
                 shutil.copy(source_copy, dest_copy)
 
-    if rc == 0:
+    _out, _err, rc = run(["git", "diff", "--staged", "--quiet"])
+    if rc:
+        run(["git", "commit", "-S", "-m", "Add untranslated files."])
+
+    if rc_cherry_pick == 0:
         run(["git", "push", "-u", "origin", branch_name])
         pr_title = f"Update translations for {language}"
         os.environ["GITHUB_TOKEN"] = token
