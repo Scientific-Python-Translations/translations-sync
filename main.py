@@ -513,6 +513,7 @@ filter_commits('\\$filename', '{language}')
                 print("\n\nCopying file:", source_copy, dest_copy)
                 shutil.copy(source_copy, dest_copy)
 
+    run(["git", "add", "."])
     _out, _err, rc = run(["git", "diff", "--staged", "--quiet"])
     if rc:
         run(["git", "commit", "-S", "-m", "Add untranslated files."])
