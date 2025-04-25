@@ -5,9 +5,15 @@ import tempfile
 from datetime import datetime
 from subprocess import Popen, PIPE
 from pathlib import Path
+import shutil
+
 
 from crowdin_api import CrowdinClient  # type: ignore
 from github import Github, Auth
+from dotenv import load_dotenv
+
+
+load_dotenv()  # take environment variables
 
 
 def parse_input() -> dict:
@@ -67,7 +73,7 @@ def run(cmds: list[str]) -> tuple[str, str, int]:
 def generate_card(
     name: str,
     img_link: str,
-    link: str = "https://scientific-python-translations.github.io/",
+    link: str = "https://scientific-python-translations.github.io/contributors/",
 ) -> str:
     """
     Generate a card in TOML format.
@@ -413,7 +419,19 @@ def create_translations_pr(
     out : str
         Output of the command.
     """
+    print("\n\n### Folders")
+    two_letter_lang_code = language_code[:2]
     base_folder = Path(os.getcwd())
+    source_folder_path = str(Path(os.getcwd()).parent / source_repo.split("/")[1])
+    source_folder_lang_path = base_folder.parent / source_folder
+    trans_folder_path = (
+        base_folder.parent / translations_folder
+    ).parent / two_letter_lang_code
+    print(f"\n\nbase_folder: {base_folder}")
+    print(f"\n\nsource_folder_path: {source_folder_path}")
+    print(f"\n\nsource_folder_lang_path: {source_folder_lang_path}")
+    print(f"\n\ntrans_folder_path: {trans_folder_path}")
+
     print(f"\n\n### Creating PR for {language}")
     upstream_remote = "origin"
     source_branch = translations_ref
@@ -474,6 +492,27 @@ filter_commits('\\$filename', '{language}')
 
     out, err, rc = run(["bash", temp_bash_script])
 
+    # Copy files from the source folder to the translations folder
+    # that are not in the translations folder
+    trans_files = []
+    for root, _dirs, files in os.walk(trans_folder_path):
+        for name in files:
+            trans_files.append(
+                str(os.path.join(root, name)).replace(str(trans_folder_path), "")
+            )
+
+    print("\n\n### Checking files found in source but not in translations")
+    for root, _dirs, files in os.walk(source_folder_lang_path):
+        for name in files:
+            file_path = str(os.path.join(root, name)).replace(
+                str(source_folder_lang_path), ""
+            )
+            if file_path not in trans_files:
+                source_copy = str(source_folder_lang_path) + file_path
+                dest_copy = str(trans_folder_path) + file_path
+                print("\n\nCopying file:", source_copy, dest_copy)
+                shutil.copy(source_copy, dest_copy)
+
     if rc == 0:
         run(["git", "push", "-u", "origin", branch_name])
         pr_title = f"Update translations for {language}"
@@ -510,21 +549,17 @@ filter_commits('\\$filename', '{language}')
             print("\n\nNot all commits are signed, abort merge!")
 
         # Create PR upstream
-        two_letter_lang_code = language_code[:2]
         translations_branch_name = f"add/translations-{language_code}"
-        path = str(Path(os.getcwd()).parent / source_repo.split("/")[1])
-        trans_path = (
-            base_folder.parent / translations_folder
-        ).parent / two_letter_lang_code
         dest_path = (base_folder.parent / source_folder).parent
-        os.chdir(path)
+        os.chdir(source_folder_path)
         run(["git", "checkout", "-b", translations_branch_name])
-        print("PATH:", trans_path)
-        run(["rsync", "-av", "--delete", str(trans_path), str(dest_path)])
+        print("PATH:", trans_folder_path)
+        run(["rsync", "-av", "--delete", str(trans_folder_path), str(dest_path)])
         run(["git", "add", "."])
         _out, _err, rc = run(["git", "diff", "--staged", "--quiet"])
         pr_title = f"Add translations for {language}"
         if rc:
+            # run(["git", "commit", "-m", f"Add {language} translations."])
             run(["git", "commit", "-S", "-m", f"Add {language} translations."])
 
             if use_precommit:
@@ -532,6 +567,7 @@ filter_commits('\\$filename', '{language}')
                 run(["git", "add", "."])
                 _out, _err, rc = run(["git", "diff", "--staged", "--quiet"])
                 if rc:
+                    # run(["git", "commit", "-m", "Run pre-commit."])
                     run(["git", "commit", "-S", "-m", "Run pre-commit."])
 
             run(["git", "push", "-u", "origin", translations_branch_name, "--force"])
@@ -593,6 +629,7 @@ def create_translators_file(
         Dictionary with the updated translators information.
     """
     print("\n\n### Creating translators file")
+    run(["git", "checkout", "-b", "add/translators-file"])
     existing_translators = translators
     if os.path.exists("translators.yml"):
         with open("translators.yml") as fh:
@@ -632,8 +669,8 @@ def create_translators_file(
 
     branch_name = "add/translators-file"
     pr_title = "Add/update translators file."
-    run(["git", "checkout", "-b", "add/translators-file"])
     run(["git", "add", "."])
+    # run(["git", "commit", "-m", pr_title])
     run(["git", "commit", "-S", "-m", pr_title])
     run(["git", "push", "-u", "origin", branch_name, "--force"])
     run(

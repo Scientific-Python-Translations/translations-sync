@@ -92,5 +92,5 @@ runs:
         CROWDIN_PROJECT: ${{ inputs.CROWDIN-PROJECT }}
       run: |
         python -m pip install --upgrade pip
-        python -m pip install crowdin-api-client pre-commit pygithub requests
+        python -m pip install crowdin-api-client python-dotenv pre-commit pygithub requests
         python main.py
