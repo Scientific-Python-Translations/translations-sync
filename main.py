@@ -386,6 +386,7 @@ def create_translations_pr(
     language: str,
     language_code: str,
     use_precommit: bool = False,
+    project_id: int = 0,
 ) -> None:
     """Create a pull request for translations.
 
@@ -592,7 +593,7 @@ filter_commits('\\$filename', '{language}')
                     "--title",
                     pr_title,
                     "--body",
-                    f"This PR adds the translations for {language} to the project.\n\nThis PR was automatically created by the @scientificpythontranslations bot and no commits should be pushed directly to this branch/PR. Any modifications should be addressed directly in the https://scientific-python.crowdin.com/ site.\n\nThe Crowdin integration for this repository is located at https://github.com/{translations_repo}.",
+                    f"This PR adds the translations for {language} to the project.\n\nThis PR was automatically created by the @scientificpythontranslations bot and only commits that resolve any merge conflicts should be pushed directly to this branch/PR. Any modifications of the translated content should be addressed directly on the [Crowdin Project Site](https://scientific-python.crowdin.com//u/projects/{project_id}/l/{language_code}).\n\nThe Crowdin integration for this repository is located at https://github.com/{translations_repo}.",
                 ]
             )
         run(["git", "checkout", "main"])
@@ -720,6 +721,7 @@ def main() -> None:
         client = ScientificCrowdinClient(
             token=gh_input["crowdin_token"], organization="Scientific-python"
         )
+        project_id = client.get_project_id(crowdin_project)
         valid_languages = client.get_valid_languages(
             crowdin_project,
             int(gh_input["translation_percentage"]),
@@ -761,6 +763,7 @@ def main() -> None:
                 language=data["language_name"],
                 language_code=language_code,
                 use_precommit=gh_input["use_precommit"],
+                project_id=project_id,
             )
     except Exception as e:
         print("Error: ", e)
