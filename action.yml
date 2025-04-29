@@ -14,8 +14,8 @@ inputs:
   translations-repo:
     description: "Translations repository"
     required: true
-  translations-folder:
-    description: "Translations folder"
+  translations-source-folder:
+    description: "This is the folder in the translations repo where all the content will be copied to."
     required: true
   translations-ref:
     description: "Translations reference"
@@ -78,7 +78,7 @@ runs:
         INPUT_SOURCE-FOLDER: ${{ inputs.SOURCE-FOLDER }}
         INPUT_SOURCE-REF: ${{ inputs.SOURCE-REF }}
         INPUT_TRANSLATIONS-REPO: ${{ inputs.TRANSLATIONS-REPO }}
-        INPUT_TRANSLATIONS-FOLDER: ${{ inputs.TRANSLATIONS-FOLDER }}
+        INPUT_TRANSLATIONS-SOURCE-FOLDER: ${{ inputs.TRANSLATIONS-SOURCE-FOLDER }}
         INPUT_TRANSLATIONS-REF: ${{ inputs.TRANSLATIONS-REF }}
         INPUT_CROWDIN-PROJECT: ${{ inputs.CROWDIN-PROJECT }}
         INPUT_APPROVAL-PERCENTAGE: ${{ inputs.APPROVAL-PERCENTAGE }}

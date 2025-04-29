@@ -5,7 +5,6 @@ import tempfile
 from datetime import datetime
 from subprocess import Popen, PIPE
 from pathlib import Path
-import shutil
 
 
 from crowdin_api import CrowdinClient  # type: ignore
@@ -28,7 +27,8 @@ def parse_input() -> dict:
         "source_folder": os.environ["INPUT_SOURCE-FOLDER"],
         "source_ref": os.environ["INPUT_SOURCE-REF"],
         "translations_repo": os.environ["INPUT_TRANSLATIONS-REPO"],
-        "translations_folder": os.environ["INPUT_TRANSLATIONS-FOLDER"],
+        # "translations_folder": os.environ["INPUT_TRANSLATIONS-FOLDER"],
+        "translations_source_folder": os.environ["INPUT_TRANSLATIONS-SOURCE-FOLDER"],
         "translations_ref": os.environ["INPUT_TRANSLATIONS-REF"],
         "crowdin_project": os.environ["INPUT_CROWDIN-PROJECT"],
         "approval_percentage": os.environ["INPUT_APPROVAL-PERCENTAGE"],
@@ -379,10 +379,12 @@ def create_translations_pr(
     source_folder: str,
     source_ref: str,
     translations_repo: str,
-    translations_folder: str,
+    # translations_folder: str,
+    translations_source_folder: str,
     translations_ref: str,
     name: str,
     email: str,
+    all_languages: list,
     language: str,
     language_code: str,
     use_precommit: bool = False,
@@ -423,15 +425,15 @@ def create_translations_pr(
     print("\n\n### Folders")
     two_letter_lang_code = language_code[:2]
     base_folder = Path(os.getcwd())
-    source_folder_path = str(Path(os.getcwd()).parent / source_repo.split("/")[1])
-    source_folder_lang_path = base_folder.parent / source_folder
-    trans_folder_path = (
-        base_folder.parent / translations_folder
-    ).parent / two_letter_lang_code
+    source_folder_path = str(Path(os.getcwd()).parent / source_folder)
+    source_folder_lang_path = Path(os.getcwd()).parent / translations_source_folder
+    trans_folder_path = source_folder_lang_path / two_letter_lang_code
+    source_folder_lang_path_str = str(source_folder_lang_path)
     print(f"\n\nbase_folder: {base_folder}")
     print(f"\n\nsource_folder_path: {source_folder_path}")
-    print(f"\n\nsource_folder_lang_path: {source_folder_lang_path}")
+    print(f"\n\nsource_folder_lang_path: {source_folder_lang_path_str}")
     print(f"\n\ntrans_folder_path: {trans_folder_path}")
+    print(f"\n\nall_languages: {all_languages}")
 
     print(f"\n\n### Creating PR for {language}")
     upstream_remote = "origin"
@@ -499,20 +501,28 @@ filter_commits('\\$filename', '{language}')
     for root, _dirs, files in os.walk(trans_folder_path):
         for name in files:
             trans_files.append(
-                str(os.path.join(root, name)).replace(str(trans_folder_path), "")
+                str(os.path.join(root, name)).replace(str(source_folder_lang_path), "")
             )
+    print("\n\n### Files in translations folder")
+    for g in trans_files:
+        print(g)
 
+    lang_prefix = [f"/{lp}/" for lp in all_languages]
     print("\n\n### Checking files found in source but not in translations")
-    for root, _dirs, files in os.walk(source_folder_lang_path):
+    for root, _dirs, files in os.walk(source_folder_path):
         for name in files:
+            # print(os.path.join(root, name))
             file_path = str(os.path.join(root, name)).replace(
-                str(source_folder_lang_path), ""
+                str(source_folder_path), ""
             )
-            if file_path not in trans_files:
-                source_copy = str(source_folder_lang_path) + file_path
-                dest_copy = str(trans_folder_path) + file_path
+            # TODO: do not copy other languages!!!!!
+            check = all([not file_path.startswith(lp) for lp in lang_prefix])
+            if file_path not in trans_files and check:
+                print(file_path)
+                source_copy = str(source_folder_path) + file_path
+                dest_copy = str(source_folder_lang_path) + file_path
                 print("\n\nCopying file:", source_copy, dest_copy)
-                shutil.copy(source_copy, dest_copy)
+                # shutil.copy(source_copy, dest_copy)
 
     run(["git", "add", "."])
     _out, _err, rc = run(["git", "diff", "--staged", "--quiet"])
@@ -722,6 +732,8 @@ def main() -> None:
             token=gh_input["crowdin_token"], organization="Scientific-python"
         )
         project_id = client.get_project_id(crowdin_project)
+        all_languages = client.get_project_languages(crowdin_project)
+        all_languages = [lang[:2] for lang in all_languages]
         valid_languages = client.get_valid_languages(
             crowdin_project,
             int(gh_input["translation_percentage"]),
@@ -756,15 +768,17 @@ def main() -> None:
                 source_folder=gh_input["source_folder"],
                 source_ref=gh_input["source_ref"],
                 translations_repo=gh_input["translations_repo"],
-                translations_folder=gh_input["translations_folder"],
+                translations_source_folder=gh_input["translations_source_folder"],
                 translations_ref=gh_input["translations_ref"],
                 name=gh_input["name"],
                 email=gh_input["email"],
+                all_languages=all_languages,
                 language=data["language_name"],
                 language_code=language_code,
                 use_precommit=gh_input["use_precommit"],
                 project_id=project_id,
             )
+            break
     except Exception as e:
         print("Error: ", e)
         print(traceback.format_exc())
