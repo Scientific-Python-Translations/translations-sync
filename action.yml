@@ -32,6 +32,9 @@ inputs:
   create-toml-file:
     description: "Create toml file with translators information."
     default: "false"
+  create-upstream-pr:
+    description: ""
+    default: "true"
   gpg-private-key:
     description: "GPG private key of the user/email making the commits"
     required: true
@@ -85,6 +88,7 @@ runs:
         INPUT_TRANSLATION-PERCENTAGE: ${{ inputs.TRANSLATION-PERCENTAGE }}
         INPUT_USE-PRECOMMIT: ${{ inputs.USE-PRECOMMIT }}
         INPUT_CREATE-TOML-FILE: ${{ inputs.CREATE-TOML-FILE }}
+        INPUT_CREATE-UPSTREAM-PR: ${{ inputs.CREATE-UPSTREAM-PR }}
         GPG_NAME: ${{ steps.import-gpg.outputs.name }}
         GPG_EMAIL: ${{ steps.import-gpg.outputs.email }}
         TOKEN: ${{ inputs.TOKEN }}
