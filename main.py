@@ -611,7 +611,7 @@ filter_commits('\\$filename', '{language}')
                     "--title",
                     pr_title,
                     "--body",
-                    f"This PR adds the translations for {language} to the project.\n\nThis PR was automatically created by the @scientificpythontranslations bot and only commits that resolve any merge conflicts should be pushed directly to this branch/PR. Any modifications of the translated content should be addressed directly on the [Crowdin Project Site](https://scientific-python.crowdin.com//u/projects/{project_id}/l/{language_code}).\n\nThe Crowdin integration for this repository is located at https://github.com/{translations_repo}.",
+                    f"This PR adds the translations for {language} to the project.\n\nThis PR was automatically created by the @scientificpythontranslations bot and only commits that resolve any merge conflicts should be pushed directly to this branch/PR. Any modifications of the translated content should be addressed directly on the [Crowdin Project Site](https://scientific-python.crowdin.com/u/projects/{project_id}/l/{language_code}).\n\nThe Crowdin integration for this repository is located at https://github.com/{translations_repo}.",
                 ]
             )
         run(["git", "checkout", "main"])
