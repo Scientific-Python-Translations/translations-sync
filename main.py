@@ -786,7 +786,6 @@ def main() -> None:
                 use_precommit=gh_input["use_precommit"],
                 project_id=project_id,
             )
-            break
     except Exception as e:
         print("Error: ", e)
         print(traceback.format_exc())
