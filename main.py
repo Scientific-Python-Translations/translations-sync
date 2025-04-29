@@ -566,11 +566,19 @@ filter_commits('\\$filename', '{language}')
 
         # Create PR upstream
         translations_branch_name = f"add/translations-{language_code}"
-        dest_path = (base_folder.parent / source_folder).parent
+        # dest_path = (base_folder.parent / source_folder).parent
         os.chdir(source_folder_path)
         run(["git", "checkout", "-b", translations_branch_name])
         print("PATH:", trans_folder_path)
-        run(["rsync", "-av", "--delete", str(trans_folder_path), str(dest_path)])
+        run(
+            [
+                "rsync",
+                "-av",
+                "--delete",
+                str(trans_folder_path),
+                str(source_folder_path),
+            ]
+        )
         run(["git", "add", "."])
         _out, _err, rc = run(["git", "diff", "--staged", "--quiet"])
         pr_title = f"Add translations for {language}"
