@@ -5,8 +5,8 @@ import tempfile
 from datetime import datetime
 from subprocess import Popen, PIPE
 from pathlib import Path
-
-
+import shutil
+from typing import Optional, Union
 from crowdin_api import CrowdinClient  # type: ignore
 from github import Github, Auth
 from dotenv import load_dotenv
@@ -27,8 +27,8 @@ def parse_input() -> dict:
         "source_folder": os.environ["INPUT_SOURCE-FOLDER"],
         "source_ref": os.environ["INPUT_SOURCE-REF"],
         "translations_repo": os.environ["INPUT_TRANSLATIONS-REPO"],
-        # "translations_folder": os.environ["INPUT_TRANSLATIONS-FOLDER"],
-        "translations_source_folder": os.environ["INPUT_TRANSLATIONS-SOURCE-FOLDER"],
+        "translations_folder": os.environ["INPUT_TRANSLATIONS-FOLDER"],
+        # "translations_source_folder": os.environ["INPUT_TRANSLATIONS-SOURCE-FOLDER"],
         "translations_ref": os.environ["INPUT_TRANSLATIONS-REF"],
         "crowdin_project": os.environ["INPUT_CROWDIN-PROJECT"],
         "approval_percentage": os.environ["INPUT_APPROVAL-PERCENTAGE"],
@@ -42,13 +42,17 @@ def parse_input() -> dict:
     return gh_input
 
 
-def run(cmds: list[str]) -> tuple[str, str, int]:
-    """Run a command in the shell and print output.
+def run(
+    cmds: list[str], cwd: Optional[Union[str, Path]] = None
+) -> tuple[str, str, int]:
+    """Run a command in the shell and print the standard output, error and return code.
 
     Parameters
     ----------
     cmds : list
         List of commands to run.
+    cwd : str, optional
+        Current working directory to run the command in. If None, use the current working directory.
 
     Returns
     -------
@@ -59,11 +63,12 @@ def run(cmds: list[str]) -> tuple[str, str, int]:
     rc : int
         Return code of the command.
     """
-    p = Popen(cmds, stdout=PIPE, stderr=PIPE)
+    p = Popen(cmds, stdout=PIPE, stderr=PIPE, cwd=cwd)
     out, err = p.communicate()
     stdout = out.decode()
     stderr = err.decode()
     print("\n\n\nCmd: \n" + " ".join(cmds))
+    print("Cwd: \n", cwd or os.getcwd())
     print("Out: \n", stdout)
     print("Err: \n", stderr)
     print("Code: \n", p.returncode)
@@ -216,8 +221,10 @@ def configure_git_and_checkout_repos(
     username: str,
     token: str,
     source_repo: str,
+    source_folder: str,
     source_ref: str,
     translations_repo: str,
+    translations_folder: str,
     translations_ref: str,
     name: str,
     email: str,
@@ -246,8 +253,27 @@ def configure_git_and_checkout_repos(
     """
     os.environ["GITHUB_TOKEN"] = token
     print("\n\n### Configure git information and checkout repositories")
-    print("\n\ngetcwd:", os.getcwd())
-    run(["ls"])
+
+    base_path = Path(os.getcwd())
+    base_source_path = base_path / source_repo.split("/")[-1]
+    if source_folder in ["/", ""]:
+        source_path = base_source_path
+    else:
+        source_path = base_source_path / source_folder
+
+    if source_folder in ["/", ""]:
+        source_path = base_source_path
+    else:
+        source_path = base_source_path / source_folder
+
+    base_translations_path = base_path / translations_repo.split("/")[-1]
+    translations_path = base_translations_path / translations_folder
+
+    print("\nBase path: ", base_path)
+    print("\nBase source path: ", base_source_path)
+    print("\nSource path: ", source_path)
+    print("\nBase translations path: ", base_translations_path)
+    print("\nTranslations path: ", translations_path)
 
     # Configure git information
     run(["git", "config", "--global", "user.name", f'"{name}"'])
@@ -274,8 +300,6 @@ def configure_git_and_checkout_repos(
         ]
 
     run(cmds)
-    print("\n\ngetcwd:", os.getcwd())
-    run(["ls"])
 
     if translations_ref:
         cmds = [
@@ -293,10 +317,6 @@ def configure_git_and_checkout_repos(
         ]
 
     run(cmds)
-
-    os.chdir(translations_repo.split("/")[1])
-    print("\n\ngetcwd:", os.getcwd())
-    run(["ls"])
 
 
 def verify_signature(
@@ -379,8 +399,8 @@ def create_translations_pr(
     source_folder: str,
     source_ref: str,
     translations_repo: str,
-    # translations_folder: str,
-    translations_source_folder: str,
+    translations_folder: str,
+    # translations_source_folder: str,
     translations_ref: str,
     name: str,
     email: str,
@@ -422,49 +442,53 @@ def create_translations_pr(
     out : str
         Output of the command.
     """
-    print("\n\n### Folders")
-    two_letter_lang_code = language_code[:2]
-    base_folder = Path(os.getcwd())
-    source_folder_path = str(Path(os.getcwd()).parent / source_folder)
-    source_folder_lang_path = Path(os.getcwd()).parent / translations_source_folder
-    trans_folder_path = source_folder_lang_path / two_letter_lang_code
-    source_folder_lang_path_str = str(source_folder_lang_path)
-    print(f"\n\nbase_folder: {base_folder}")
-    print(f"\n\nsource_folder_path: {source_folder_path}")
-    print(f"\n\nsource_folder_lang_path: {source_folder_lang_path_str}")
-    print(f"\n\ntrans_folder_path: {trans_folder_path}")
-    print(f"\n\nall_languages: {all_languages}")
+    base_path = Path(os.getcwd())
+    base_source_path = base_path / source_repo.split("/")[-1]
+    if source_folder in ["/", ""]:
+        source_path = base_source_path
+    else:
+        source_path = base_source_path / source_folder
+
+    base_translations_path = base_path / translations_repo.split("/")[-1]
+    translations_path = base_translations_path / translations_folder
+
+    print(
+        "\n\n### Syncing content from source repository to translations repository.\n\n"
+    )
+    print("\nBase path: ", base_path)
+    print("\nBase source path: ", base_source_path)
+    print("\nSource path: ", source_path)
+    print("\nBase translations path: ", base_translations_path)
+    print("\nTranslations path: ", translations_path)
 
     print(f"\n\n### Creating PR for {language}")
     upstream_remote = "origin"
     source_branch = translations_ref
     crowdin_branch = "l10n_main"
 
-    # TODO: Change working dir to the translations repo
-
     # Make sure source branch is up to date with upstream
-    run(["git", "checkout", source_branch])
-    run(["git", "fetch", upstream_remote])
-    run(["git", "merge", "--ff-only", f"{upstream_remote}/{source_branch}"])
+    run(["git", "checkout", source_branch], cwd=translations_path)
+    run(["git", "fetch", upstream_remote], cwd=translations_path)
+    run(["git", "merge", "--ff-only", f"{upstream_remote}/{source_branch}"], cwd=translations_path)
 
     # Make sure the corresponding Crowdin branch is up to date
-    run(["git", "checkout", crowdin_branch])
-    run(["git", "merge", "--ff-only", f"{upstream_remote}/{crowdin_branch}"])
+    run(["git", "checkout", crowdin_branch], cwd=translations_path)
+    run(["git", "merge", "--ff-only", f"{upstream_remote}/{crowdin_branch}"], cwd=translations_path)
 
     # Check that crowdin branch has no merge conflicts with respect to the source branch
-    run(["git", "checkout", source_branch])
-    _, _, rc = run(["git", "merge", "--no-commit", "--no-ff", crowdin_branch])
+    run(["git", "checkout", source_branch], cwd=translations_path)
+    _, _, rc = run(["git", "merge", "--no-commit", "--no-ff", crowdin_branch], cwd=translations_path)
     if rc != 0:
         raise Exception("Merge conflict between source and crowdin branch.")
 
-    run(["git", "merge", "--abort"])
-    run(["git", "checkout", crowdin_branch])
+    run(["git", "merge", "--abort"], cwd=translations_path)
+    run(["git", "checkout", crowdin_branch], cwd=translations_path)
 
     date_time = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     branch_name = f"{crowdin_branch}_{language_code}_{date_time}"
 
     # Checkout a new branch for these translations
-    run(["git", "checkout", "-b", branch_name])
+    run(["git", "checkout", "-b", branch_name], cwd=translations_path)
 
     # Run interactive rebase and cherry-pick only the commits for the language
     _, temp_bash_script = tempfile.mkstemp(
@@ -485,7 +509,7 @@ filter_commits('\\$filename', '{language}')
 \\"
 }}; f" git rebase -i {source_branch}"""
     new_content = content.format(
-        script_location=os.path.dirname(__file__),
+        script_location=str(base_path.parent),
         language=language,
         source_branch=source_branch,
     )
@@ -493,7 +517,11 @@ filter_commits('\\$filename', '{language}')
     with open(temp_bash_script, "w") as f:
         f.write(new_content)
 
+
+    print(run(["git", "status"], cwd=str(base_path.parent)))
     out, err, rc_cherry_pick = run(["bash", temp_bash_script])
+
+    return
 
     # Copy files from the source folder to the translations folder
     # that are not in the translations folder
@@ -516,13 +544,15 @@ filter_commits('\\$filename', '{language}')
                 str(source_folder_path), ""
             )
             # TODO: do not copy other languages!!!!!
-            check = all([not file_path.startswith(lp) for lp in lang_prefix])
+            # check = all([not file_path.startswith(lp) for lp in lang_prefix])
+            check = True
             if file_path not in trans_files and check:
                 print(file_path)
                 source_copy = str(source_folder_path) + file_path
                 dest_copy = str(source_folder_lang_path) + file_path
+                # dest_copy = str(trans_folder_path) + file_path
                 print("\n\nCopying file:", source_copy, dest_copy)
-                # shutil.copy(source_copy, dest_copy)
+                shutil.copy(source_copy, dest_copy)
 
     run(["git", "add", "."])
     _out, _err, rc = run(["git", "diff", "--staged", "--quiet"])
@@ -754,20 +784,22 @@ def main() -> None:
             username=gh_input["username"],
             token=gh_input["token"],
             source_repo=gh_input["source_repo"],
+            source_folder=gh_input["source_folder"],
             source_ref=gh_input["source_ref"],
             translations_repo=gh_input["translations_repo"],
+            translations_folder=gh_input["translations_folder"],
             translations_ref=gh_input["translations_ref"],
             name=gh_input["name"],
             email=gh_input["email"],
         )
-        create_translators_file(
-            translators,
-            token=gh_input["token"],
-            name=gh_input["name"],
-            email=gh_input["email"],
-            translations_repo=gh_input["translations_repo"],
-            create_toml_file=gh_input["create_toml_file"],
-        )
+        # create_translators_file(
+        #     translators,
+        #     token=gh_input["token"],
+        #     name=gh_input["name"],
+        #     email=gh_input["email"],
+        #     translations_repo=gh_input["translations_repo"],
+        #     create_toml_file=gh_input["create_toml_file"],
+        # )
         for language_code, data in valid_languages.items():
             create_translations_pr(
                 username=gh_input["username"],
@@ -776,7 +808,7 @@ def main() -> None:
                 source_folder=gh_input["source_folder"],
                 source_ref=gh_input["source_ref"],
                 translations_repo=gh_input["translations_repo"],
-                translations_source_folder=gh_input["translations_source_folder"],
+                translations_folder=gh_input["translations_folder"],
                 translations_ref=gh_input["translations_ref"],
                 name=gh_input["name"],
                 email=gh_input["email"],
@@ -786,6 +818,7 @@ def main() -> None:
                 use_precommit=gh_input["use_precommit"],
                 project_id=project_id,
             )
+            break
     except Exception as e:
         print("Error: ", e)
         print(traceback.format_exc())
