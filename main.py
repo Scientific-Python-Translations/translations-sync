@@ -911,7 +911,6 @@ def main() -> None:
                 project_id=project_id,
                 run_local=gh_input["run_local"],
             )
-            break
         create_translators_file(
             translators,
             token=gh_input["token"],
