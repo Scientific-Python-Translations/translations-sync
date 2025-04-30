@@ -486,7 +486,7 @@ def create_translations_pr(
     print("\n\nTranslations language path:\n", trans_lang_path)
 
     print(f"\n\n### Creating PR for {language}")
-    upstream_remote = "upstream"
+    upstream_remote = "origin"
     source_branch = translations_ref
     crowdin_branch = "l10n_main"
 
