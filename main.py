@@ -40,7 +40,7 @@ def parse_input() -> dict:
         # Provided by gpg action based on organization secrets
         "name": os.environ["GPG_NAME"],
         "email": os.environ["GPG_EMAIL"],
-        "run_local": os.environ["RUN_LOCAL"].lower() == "true",
+        "run_local": os.environ.get("RUN_LOCAL", "False").lower() == "true",
     }
     return gh_input
 
