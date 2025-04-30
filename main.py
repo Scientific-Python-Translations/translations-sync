@@ -5,7 +5,6 @@ import tempfile
 from datetime import datetime
 from subprocess import Popen, PIPE
 from pathlib import Path
-import shutil
 from typing import Optional, Union
 from crowdin_api import CrowdinClient  # type: ignore
 from github import Github, Auth
@@ -273,8 +272,9 @@ def configure_git_and_checkout_repos(
     print("\n\nTranslations path:\n", trans_path)
     print("\n\nTranslations source path:\n", trans_source_path)
 
-    _owner, repo = source_repo.split("/")
+    owner, repo = source_repo.split("/")
     source_repo_fork = f"scientificpythontranslations/{repo}"
+    upstream = f"https://github.com/{owner}/{repo}.git"
     run(["gh", "repo", "fork", source_repo, "--clone=false"])
 
     if source_ref:
@@ -294,6 +294,11 @@ def configure_git_and_checkout_repos(
         ]
 
     run(cmds, cwd=base_path)
+    # Keep the bots fork in sync with the upstream repo
+    run(["git", "remote", "add", "upstream", upstream], cwd=base_source_path)
+    run(["git", "checkout", source_ref], cwd=base_source_path)
+    run(["git", "pull", "upstream", source_ref], cwd=base_source_path)
+    run(["git", "push", "origin", source_ref], cwd=base_source_path)
 
     if translations_ref:
         cmds = [
@@ -404,11 +409,11 @@ def create_translations_pr(
     username: str,
     token: str,
     source_repo: str,
-    source_folder: str,
+    source_path: str,
     source_ref: str,
     translations_repo: str,
-    translations_folder: str,
-    # translations_source_folder: str,
+    translations_path: str,
+    translations_source_path: str,
     translations_ref: str,
     name: str,
     email: str,
@@ -463,26 +468,25 @@ def create_translations_pr(
     """
     base_path = Path(os.getcwd())
     base_source_path = base_path / source_repo.split("/")[-1]
-    if source_folder in ["/", ""]:
-        source_path = base_source_path
-    else:
-        source_path = base_source_path / source_folder
-
     base_translations_path = base_path / translations_repo.split("/")[-1]
-    translations_path = base_translations_path / translations_folder
-    trans_lang_path = base_translations_path / translations_folder / language_code[:2]
+    trans_path = base_translations_path / translations_path
+    trans_source_path = base_translations_path / translations_source_path
+    trans_lang_path = base_translations_path / translations_path / language_code[:2]
+
     print(language_code)
     print(
         "\n\n### Syncing content from source repository to translations repository.\n\n"
     )
-    print("\nBase path: ", base_path)
-    print("\nBase source path: ", base_source_path)
-    print("\nSource path: ", source_path)
-    print("\nBase translations path: ", base_translations_path)
-    print("\nTranslations path: ", translations_path)
+    print("\n\nBase path:\n", base_path)
+    print("\n\nBase source path:\n", base_source_path)
+    print("\n\nSource path:\n", source_path)
+    print("\n\nBase translations path:\n", base_translations_path)
+    print("\n\nTranslations path:\n", trans_path)
+    print("\n\nTranslations source path:\n", trans_source_path)
+    print("\n\nTranslations language path:\n", trans_lang_path)
 
     print(f"\n\n### Creating PR for {language}")
-    upstream_remote = "origin"
+    upstream_remote = "upstream"
     source_branch = translations_ref
     crowdin_branch = "l10n_main"
 
@@ -502,7 +506,7 @@ def create_translations_pr(
     )
 
     # Check that crowdin branch has no merge conflicts with respect to the source branch
-    run(["git", "checkout", source_branch], cwd=translations_path)
+    run(["git", "checkout", source_branch], cwd=base_translations_path)
     _, _, rc = run(
         ["git", "merge", "--no-commit", "--no-ff", crowdin_branch],
         cwd=base_translations_path,
@@ -562,27 +566,27 @@ filter_commits('\\$filename', '{language}')
     for g in trans_files:
         print(g)
 
-    lang_prefix = [f"/{lp}/" for lp in all_languages]
-    print("\n\n### Checking files found in source but not in translations")
-    for root, _dirs, files in os.walk(source_path):
-        for name in files:
-            # print(os.path.join(root, name))
-            file_path = str(os.path.join(root, name)).replace(str(source_path), "")
-            if ".git" in file_path:
-                continue
+    # lang_prefix = [f"/{lp}/" for lp in all_languages]
+    # print("\n\n### Checking files found in source but not in translations")
+    # for root, _dirs, files in os.walk(src_path):
+    #     for name in files:
+    #         # print(os.path.join(root, name))
+    #         file_path = str(os.path.join(root, name)).replace(str(src_path), "")
+    #         if ".git" in file_path:
+    #             continue
 
-            check = all([not file_path.startswith(lp) for lp in lang_prefix])
-            if file_path not in trans_files and check:
-                source_copy = str(source_path) + file_path
-                if source_folder == translations_folder:
-                    dest_copy = str(translations_path) + file_path
-                else:
-                    dest_copy = str(trans_lang_path) + file_path
-                print("\n\nCopying file:", source_copy, dest_copy)
-                os.makedirs(os.path.dirname(dest_copy), exist_ok=True)
-                shutil.copy(source_copy, dest_copy)
+    #         check = all([not file_path.startswith(lp) for lp in lang_prefix])
+    #         if file_path not in trans_files and check:
+    #             source_copy = str(source_path) + file_path
+    #             if source_path == translations_path:
+    #                 dest_copy = str(trans_path) + file_path
+    #             else:
+    #                 dest_copy = str(trans_lang_path) + file_path
+    #             print("\n\nCopying file:", source_copy, dest_copy)
+    #             os.makedirs(os.path.dirname(dest_copy), exist_ok=True)
+    #             shutil.copy(source_copy, dest_copy)
 
-    run(["git", "add", "."], cwd=translations_path)
+    run(["git", "add", "."], cwd=base_translations_path)
     _out, _err, rc = run(
         ["git", "diff", "--staged", "--quiet"], cwd=base_translations_path
     )
@@ -599,7 +603,7 @@ filter_commits('\\$filename', '{language}')
             )
 
     if rc_cherry_pick == 0:
-        run(["git", "push", "-u", "origin", branch_name], cwd=translations_path)
+        run(["git", "push", "-u", "origin", branch_name], cwd=base_translations_path)
         pr_title = f"Update translations for {language}"
         os.environ["GITHUB_TOKEN"] = token
         run(
@@ -614,7 +618,7 @@ filter_commits('\\$filename', '{language}')
                 "--title",
                 pr_title,
                 "--body",
-                f"This PR to update translations for {language} was generated by the GitHub workflow, sync-translations.yml and includes all commits from this repo's Crowdin branch for the language of interest.",
+                f"This PR to update translations for {language} was generated by the GitHub workflow, `.github/workflows/sync_translations.yml` and includes all commits from this repo's Crowdin branch for the language of interest.",
             ],
             cwd=base_translations_path,
         )
@@ -632,12 +636,17 @@ filter_commits('\\$filename', '{language}')
                 print("\n\nAll commits are signed, auto-merging!")
                 # https://cli.github.com/manual/gh_pr_merge
                 os.environ["GITHUB_TOKEN"] = token
-                # run(["gh", "pr", "merge", branch_name, "--auto", "--squash", '--delete-branch'])
+                run(
+                    ["gh", "pr", "merge", branch_name, "--auto", "--squash"],
+                    cwd=base_translations_path,
+                )
             else:
                 print("\n\nNot all commits are signed, abort merge!")
 
         # Create PR upstream
         if create_upstream_pr:
+            # Make sure the repo is up to date
+
             translations_branch_name = f"add/translations-{language_code}"
             # dest_path = (base_folder.parent / source_folder).parent
             run(
@@ -650,7 +659,7 @@ filter_commits('\\$filename', '{language}')
                     "-av",
                     "--delete",
                     str(trans_lang_path),
-                    str(base_source_path / translations_folder),
+                    str(base_source_path / translations_path),
                 ]
             )
             run(["git", "add", "."], cwd=base_source_path)
@@ -659,7 +668,6 @@ filter_commits('\\$filename', '{language}')
             )
             pr_title = f"Add translations for {language}"
             if rc:
-                # run(["git", "commit", "-m", f"Add {language} translations."])
                 if run_local:
                     run(
                         ["git", "commit", "-m", f"Add {language} translations."],
@@ -678,7 +686,6 @@ filter_commits('\\$filename', '{language}')
                         ["git", "diff", "--staged", "--quiet"], cwd=base_source_path
                     )
                     if rc:
-                        # run(["git", "commit", "-m", "Run pre-commit."])
                         if run_local:
                             run(
                                 ["git", "commit", "-m", "Run pre-commit."],
@@ -763,9 +770,11 @@ def create_translators_file(
         Dictionary with the updated translators information.
     """
     print("\n\n### Creating translators file")
-    run(["git", "checkout", "-b", "add/translators-file"])
+    base_path = Path(os.getcwd())
+    base_translations_path = base_path / translations_repo.split("/")[-1]
+    run(["git", "checkout", "-b", "add/translators-file"], cwd=base_translations_path)
     existing_translators = translators
-    with open("translators.yml", "w") as fh:
+    with open(f"{base_translations_path}/translators.yml", "w") as fh:
         fh.write(
             yaml.dump(
                 existing_translators, default_flow_style=False, allow_unicode=True
@@ -787,21 +796,26 @@ def create_translators_file(
                         )
                     )
 
-        with open("translations-team.toml", "w") as fh:
+        fname = "translations-team.toml"
+        with open(f"{base_translations_path}/{fname}", "w") as fh:
             fh.write("\n\n".join(all_cards))
 
-        run(["git", "add", "translators.toml"])
+        run(["git", "add", fname], cwd=base_translations_path)
 
     branch_name = "add/translators-file"
     pr_title = "Add/update translators file."
 
-    run(["git", "add", "translators.yml"])
+    fname = "translators.yml"
+    run(["git", "add", fname], cwd=base_translations_path)
     if run_local:
-        run(["git", "commit", "-m", pr_title])
+        run(["git", "commit", "-m", pr_title], cwd=base_translations_path)
     else:
-        run(["git", "commit", "-S", "-m", pr_title])
+        run(["git", "commit", "-S", "-m", pr_title], cwd=base_translations_path)
 
-    run(["git", "push", "-u", "origin", branch_name, "--force"])
+    run(
+        ["git", "push", "-u", "origin", branch_name, "--force"],
+        cwd=base_translations_path,
+    )
     run(
         [
             "gh",
@@ -815,7 +829,8 @@ def create_translators_file(
             pr_title,
             "--body",
             "Update translators file.",
-        ]
+        ],
+        cwd=base_translations_path,
     )
     if auto_merge:
         if verify_signature(
@@ -825,15 +840,19 @@ def create_translators_file(
             email=email,
             pr_title=pr_title,
             branch_name=branch_name,
+            run_local=run_local,
         ):
             print("\n\nAll commits are signed, auto-merging!")
             # https://cli.github.com/manual/gh_pr_merge
             os.environ["GITHUB_TOKEN"] = token
-            run(["gh", "pr", "merge", branch_name, "--auto", "--squash"])
+            run(
+                ["gh", "pr", "merge", branch_name, "--auto", "--squash"],
+                cwd=base_translations_path,
+            )
         else:
             print("\n\nNot all commits are signed, abort merge!")
 
-    run(["git", "checkout", "main"])
+    run(["git", "checkout", "main"], cwd=base_translations_path)
     return existing_translators
 
 
@@ -870,26 +889,16 @@ def main() -> None:
             name=gh_input["name"],
             email=gh_input["email"],
         )
-        create_translators_file(
-            translators,
-            token=gh_input["token"],
-            name=gh_input["name"],
-            email=gh_input["email"],
-            translations_repo=gh_input["translations_repo"],
-            create_toml_file=gh_input["create_toml_file"],
-            auto_merge=gh_input["auto_merge"],
-            run_local=gh_input["run_local"],
-        )
-        return
         for language_code, data in valid_languages.items():
             create_translations_pr(
                 username=gh_input["username"],
                 token=gh_input["token"],
                 source_repo=gh_input["source_repo"],
-                source_folder=gh_input["source_folder"],
+                source_path=gh_input["source_path"],
                 source_ref=gh_input["source_ref"],
                 translations_repo=gh_input["translations_repo"],
-                translations_folder=gh_input["translations_folder"],
+                translations_path=gh_input["translations_path"],
+                translations_source_path=gh_input["translations_source_path"],
                 translations_ref=gh_input["translations_ref"],
                 name=gh_input["name"],
                 email=gh_input["email"],
@@ -902,6 +911,17 @@ def main() -> None:
                 project_id=project_id,
                 run_local=gh_input["run_local"],
             )
+            break
+        create_translators_file(
+            translators,
+            token=gh_input["token"],
+            name=gh_input["name"],
+            email=gh_input["email"],
+            translations_repo=gh_input["translations_repo"],
+            create_toml_file=gh_input["create_toml_file"],
+            auto_merge=gh_input["auto_merge"],
+            run_local=gh_input["run_local"],
+        )
     except Exception as e:
         print("Error: ", e)
         print(traceback.format_exc())
