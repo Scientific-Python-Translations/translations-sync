@@ -790,10 +790,12 @@ def create_translators_file(
         with open("translations-team.toml", "w") as fh:
             fh.write("\n\n".join(all_cards))
 
+        run(["git", "add", "translators.toml"])
+
     branch_name = "add/translators-file"
     pr_title = "Add/update translators file."
 
-    run(["git", "add", "."])
+    run(["git", "add", "translators.yml"])
     if run_local:
         run(["git", "commit", "-m", pr_title])
     else:
@@ -827,8 +829,7 @@ def create_translators_file(
             print("\n\nAll commits are signed, auto-merging!")
             # https://cli.github.com/manual/gh_pr_merge
             os.environ["GITHUB_TOKEN"] = token
-            # FIXME: add cwdn
-            # run(["gh", "pr", "merge", branch_name, "--auto", "--squash", '--delete-branch'])
+            run(["gh", "pr", "merge", branch_name, "--auto", "--squash"])
         else:
             print("\n\nNot all commits are signed, abort merge!")
 
