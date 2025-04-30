@@ -45,15 +45,17 @@ jobs:
           # Provided by user
           crowdin-project: "NumPy.Org"
           source-repo: "numpy/numpy.org"
-          source-folder: "numpy.org/content/en/"
+          source-folder: "content/en/"
           source-ref: "main"
           translations-repo: "Scientific-Python-Translations/numpy.org-translations"
-          translations-folder: "numpy.org-translations/content/en/"
+          translations-folder: "content/"
           translations-ref: "main"
           translation-percentage: "90"
           approval-percentage: "0"
           use-precommit: "true"
           create-toml-file: "true"
+          create-upstream-pr: "false"
+          auto-merge: "false"
           # Provided by organization secrets
           gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
@@ -75,7 +77,8 @@ jobs:
 | `translation-percentage` | ❌       | `90`    | Minimum translation percentage required to include translated content.          |
 | `approval-percentage`    | ❌       | `0`     | Minimum approval percentage required to include translated content.             |
 | `use-precommit`          | ❌       | `false` | Whether to run pre-commit hooks on the translated content.                      |
-| `create-toml-file`       | ❌       | `false` | Whether to create toml file with cards for the translators and contributors.    |
+| `create-upstream-pr`     | ❌       | `false` | Wheter to create upstream PRs with the updated translations per language.       |
+| `auto-merge`             | ❌       | `false` | Whether to auto-merge the created PRs on the translations repository.           |
 
 ## 🛠️ Setup Instructions
 

@@ -5,7 +5,7 @@ inputs:
   source-repo:
     description: "Source repository"
     required: true
-  source-folder:
+  source-path:
     description: "Source folder"
     required: true
   source-ref:
@@ -14,7 +14,10 @@ inputs:
   translations-repo:
     description: "Translations repository"
     required: true
-  translations-source-folder:
+  translations-path:
+    description: "This is the folder in the translations repo where all the content will be copied to."
+    required: true
+  translations-source-path:
     description: "This is the folder in the translations repo where all the content will be copied to."
     required: true
   translations-ref:
@@ -34,7 +37,10 @@ inputs:
     default: "false"
   create-upstream-pr:
     description: ""
-    default: "true"
+    default: "false"
+  auto-merge:
+    description: ""
+    default: "false"
   gpg-private-key:
     description: "GPG private key of the user/email making the commits"
     required: true
@@ -78,10 +84,11 @@ runs:
       shell: bash
       env:
         INPUT_SOURCE-REPO: ${{ inputs.SOURCE-REPO }}
-        INPUT_SOURCE-FOLDER: ${{ inputs.SOURCE-FOLDER }}
+        INPUT_SOURCE-PATH: ${{ inputs.SOURCE-PATH }}
         INPUT_SOURCE-REF: ${{ inputs.SOURCE-REF }}
         INPUT_TRANSLATIONS-REPO: ${{ inputs.TRANSLATIONS-REPO }}
-        INPUT_TRANSLATIONS-SOURCE-FOLDER: ${{ inputs.TRANSLATIONS-SOURCE-FOLDER }}
+        INPUT_TRANSLATIONS-PATH: ${{ inputs.TRANSLATIONS-PATH }}
+        INPUT_TRANSLATIONS-SOURCE-PATH: ${{ inputs.TRANSLATIONS-SOURCE-PATH }}
         INPUT_TRANSLATIONS-REF: ${{ inputs.TRANSLATIONS-REF }}
         INPUT_CROWDIN-PROJECT: ${{ inputs.CROWDIN-PROJECT }}
         INPUT_APPROVAL-PERCENTAGE: ${{ inputs.APPROVAL-PERCENTAGE }}
@@ -89,6 +96,7 @@ runs:
         INPUT_USE-PRECOMMIT: ${{ inputs.USE-PRECOMMIT }}
         INPUT_CREATE-TOML-FILE: ${{ inputs.CREATE-TOML-FILE }}
         INPUT_CREATE-UPSTREAM-PR: ${{ inputs.CREATE-UPSTREAM-PR }}
+        INPUT_AUTO-MERGE: ${{ inputs.AUTO-MERGE }}
         GPG_NAME: ${{ steps.import-gpg.outputs.name }}
         GPG_EMAIL: ${{ steps.import-gpg.outputs.email }}
         TOKEN: ${{ inputs.TOKEN }}
