@@ -539,7 +539,7 @@ from main import filter_commits
 
 filter_commits('\\$filename', '{language}')
 \\"
-}}; f" git rebase -i {source_branch} --reapply-cherry-picks"""
+}}; f" git rebase -i {source_branch}"""
     new_content = content.format(
         script_location=os.path.dirname(__file__),
         language=language,
@@ -553,6 +553,11 @@ filter_commits('\\$filename', '{language}')
     out, err, rc_cherry_pick = run(
         ["bash", temp_bash_script], cwd=base_translations_path
     )
+    while rc_cherry_pick == 1:
+        if 'git rebase --skip' in err:
+            _, err, rc_cherry_pick = run(["git", "rebase", "--skip"], cwd=base_translations_path)
+        else:
+            break
 
     # Copy files from the source folder to the translations folder
     # that are not in the translations folder
