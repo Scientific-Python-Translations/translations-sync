@@ -541,7 +541,7 @@ filter_commits('\\$filename', '{language}')
 \\"
 }}; f" git rebase -i {source_branch} --reapply-cherry-picks"""
     new_content = content.format(
-        script_location=str(base_path),
+        script_location=os.path.dirname(__file__),
         language=language,
         source_branch=source_branch,
     )
