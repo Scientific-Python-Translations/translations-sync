@@ -658,6 +658,8 @@ filter_commits('\\$filename', '{language}')
                 ["git", "checkout", "-b", translations_branch_name],
                 cwd=base_source_path,
             )
+            # rsync /var/www/ /home/var - copies the contents of /var/www/ but not the www folder itself.
+            # rsync /var/www /home/var - copies the folder www along with all its contents.
             run(
                 [
                     "rsync",
