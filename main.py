@@ -2,6 +2,8 @@ import yaml
 import os
 import traceback
 import tempfile
+import shutil
+
 from datetime import datetime
 from subprocess import Popen, PIPE
 from pathlib import Path
@@ -472,6 +474,7 @@ def create_translations_pr(
     trans_path = base_translations_path / translations_path
     trans_source_path = base_translations_path / translations_source_path
     trans_lang_path = base_translations_path / translations_path / language_code[:2]
+    src_path = base_source_path / source_path
 
     print(language_code)
     print(
@@ -539,7 +542,7 @@ from main import filter_commits
 
 filter_commits('\\$filename', '{language}')
 \\"
-}}; f" git rebase -i {source_branch}"""
+}}; f" git rebase -i {source_branch} --reapply-cherry-picks"""
     new_content = content.format(
         script_location=os.path.dirname(__file__),
         language=language,
@@ -554,8 +557,10 @@ filter_commits('\\$filename', '{language}')
         ["bash", temp_bash_script], cwd=base_translations_path
     )
     while rc_cherry_pick == 1:
-        if 'git rebase --skip' in err:
-            _, err, rc_cherry_pick = run(["git", "rebase", "--skip"], cwd=base_translations_path)
+        if "git rebase --skip" in err:
+            _, err, rc_cherry_pick = run(
+                ["git", "rebase", "--skip"], cwd=base_translations_path
+            )
         else:
             break
 
@@ -572,24 +577,23 @@ filter_commits('\\$filename', '{language}')
         print(g)
 
     # lang_prefix = [f"/{lp}/" for lp in all_languages]
-    # print("\n\n### Checking files found in source but not in translations")
-    # for root, _dirs, files in os.walk(src_path):
-    #     for name in files:
-    #         # print(os.path.join(root, name))
-    #         file_path = str(os.path.join(root, name)).replace(str(src_path), "")
-    #         if ".git" in file_path:
-    #             continue
-
-    #         check = all([not file_path.startswith(lp) for lp in lang_prefix])
-    #         if file_path not in trans_files and check:
-    #             source_copy = str(source_path) + file_path
-    #             if source_path == translations_path:
-    #                 dest_copy = str(trans_path) + file_path
-    #             else:
-    #                 dest_copy = str(trans_lang_path) + file_path
-    #             print("\n\nCopying file:", source_copy, dest_copy)
-    #             os.makedirs(os.path.dirname(dest_copy), exist_ok=True)
-    #             shutil.copy(source_copy, dest_copy)
+    print("\n\n### Checking files found in source but not in translations")
+    for root, _dirs, files in os.walk(src_path):
+        for name in files:
+            # print(os.path.join(root, name))
+            file_path = str(os.path.join(root, name)).replace(str(src_path), "")
+            # check = all([not file_path.startswith(lp) for lp in lang_prefix])
+            # if file_path not in trans_files and check:
+            if file_path not in trans_files:
+                source_copy = str(src_path) + file_path
+                dest_copy = str(trans_lang_path) + file_path
+                # if source_path == translations_path:
+                #     dest_copy = str(trans_path) + file_path
+                # else:
+                #     dest_copy = str(trans_lang_path) + file_path
+                print("\n\nCopying file:", source_copy, dest_copy)
+                os.makedirs(os.path.dirname(dest_copy), exist_ok=True)
+                shutil.copy(source_copy, dest_copy)
 
     run(["git", "add", "."], cwd=base_translations_path)
     _out, _err, rc = run(
@@ -653,7 +657,6 @@ filter_commits('\\$filename', '{language}')
             # Make sure the repo is up to date
 
             translations_branch_name = f"add/translations-{language_code}"
-            # dest_path = (base_folder.parent / source_folder).parent
             run(
                 ["git", "checkout", "-b", translations_branch_name],
                 cwd=base_source_path,
