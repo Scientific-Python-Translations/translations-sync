@@ -772,6 +772,7 @@ def create_translators_file(
     print("\n\n### Creating translators file")
     base_path = Path(os.getcwd())
     base_translations_path = base_path / translations_repo.split("/")[-1]
+    run(["git", "checkout", "main"], cwd=base_translations_path)
     run(["git", "checkout", "-b", "add/translators-file"], cwd=base_translations_path)
     existing_translators = translators
     with open(f"{base_translations_path}/translators.yml", "w") as fh:
