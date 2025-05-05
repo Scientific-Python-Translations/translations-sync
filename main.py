@@ -569,9 +569,9 @@ filter_commits('\\$filename', '{language}')
     # that are not in the translations folder
     trans_files = []
     for root, _dirs, files in os.walk(trans_lang_path):
-        for name in files:
+        for fname in files:
             trans_files.append(
-                str(os.path.join(root, name)).replace(str(trans_lang_path), "")
+                str(os.path.join(root, fname)).replace(str(trans_lang_path), "")
             )
     print("\n\n### Files in translations folder")
     for g in trans_files:
