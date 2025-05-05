@@ -296,6 +296,7 @@ def configure_git_and_checkout_repos(
         ]
 
     run(cmds, cwd=base_path)
+
     # Keep the bots fork in sync with the upstream repo
     run(["git", "remote", "add", "upstream", upstream], cwd=base_source_path)
     run(["git", "checkout", source_ref], cwd=base_source_path)
@@ -580,17 +581,11 @@ filter_commits('\\$filename', '{language}')
     print("\n\n### Checking files found in source but not in translations")
     for root, _dirs, files in os.walk(src_path):
         for name in files:
-            # print(os.path.join(root, name))
             file_path = str(os.path.join(root, name)).replace(str(src_path), "")
-            # check = all([not file_path.startswith(lp) for lp in lang_prefix])
             # if file_path not in trans_files and check:
             if file_path not in trans_files:
                 source_copy = str(src_path) + file_path
                 dest_copy = str(trans_lang_path) + file_path
-                # if source_path == translations_path:
-                #     dest_copy = str(trans_path) + file_path
-                # else:
-                #     dest_copy = str(trans_lang_path) + file_path
                 print("\n\nCopying file:", source_copy, dest_copy)
                 os.makedirs(os.path.dirname(dest_copy), exist_ok=True)
                 shutil.copy(source_copy, dest_copy)
@@ -867,6 +862,103 @@ def create_translators_file(
     return existing_translators
 
 
+def create_status_file(
+    status: dict,
+    token: str,
+    name: str,
+    email: str,
+    translations_repo: str,
+    auto_merge: bool = False,
+    run_local: bool = False,
+):
+    """Create a file with the translators information.
+
+    Parameters
+    ----------
+    translators : dict
+        Dictionary with the translators information.
+    token : str
+        Personal access token of the source repository.
+    name : str
+        Name of the bot account.
+    email : str
+        Email of the bot account.
+    translations_repo : str
+        .
+    create_toml_file : bool
+        Whether to create a TOML file with the translators information.
+    auto_merge : bool
+        Whether to auto-merge the pull request.
+
+    Returns
+    -------
+    translators : dict
+        Dictionary with the updated translators information.
+    """
+    print("\n\n### Creating status file")
+    base_path = Path(os.getcwd())
+    base_translations_path = base_path / translations_repo.split("/")[-1]
+    run(["git", "checkout", "main"], cwd=base_translations_path)
+    run(["git", "checkout", "-b", "add/status-file"], cwd=base_translations_path)
+    with open(f"{base_translations_path}/status.yml", "w") as fh:
+        fh.write(
+            yaml.dump(
+                status, default_flow_style=False, allow_unicode=True
+            )
+        )
+
+    branch_name = "add/status-file"
+    pr_title = "Add/update status file."
+    fname = "status.yml"
+    run(["git", "add", fname], cwd=base_translations_path)
+    if run_local:
+        run(["git", "commit", "-m", pr_title], cwd=base_translations_path)
+    else:
+        run(["git", "commit", "-S", "-m", pr_title], cwd=base_translations_path)
+
+    run(
+        ["git", "push", "-u", "origin", branch_name, "--force"],
+        cwd=base_translations_path,
+    )
+    run(
+        [
+            "gh",
+            "pr",
+            "create",
+            "--base",
+            "main",
+            "--head",
+            branch_name,
+            "--title",
+            pr_title,
+            "--body",
+            "Update status file.",
+        ],
+        cwd=base_translations_path,
+    )
+    if auto_merge:
+        if verify_signature(
+            token=token,
+            repo=translations_repo,
+            name=name,
+            email=email,
+            pr_title=pr_title,
+            branch_name=branch_name,
+            run_local=run_local,
+        ):
+            print("\n\nAll commits are signed, auto-merging!")
+            # https://cli.github.com/manual/gh_pr_merge
+            os.environ["GITHUB_TOKEN"] = token
+            run(
+                ["gh", "pr", "merge", branch_name, "--auto", "--squash"],
+                cwd=base_translations_path,
+            )
+        else:
+            print("\n\nNot all commits are signed, abort merge!")
+
+    run(["git", "checkout", "main"], cwd=base_translations_path)
+
+
 def main() -> None:
     """Main function to run the script."""
     try:
@@ -878,6 +970,7 @@ def main() -> None:
         project_id = client.get_project_id(crowdin_project)
         all_languages = client.get_project_languages(crowdin_project)
         all_languages = [lang[:2] for lang in all_languages]
+        project_status = client.get_project_status(crowdin_project)
         valid_languages = client.get_valid_languages(
             crowdin_project,
             int(gh_input["translation_percentage"]),
@@ -929,6 +1022,15 @@ def main() -> None:
             email=gh_input["email"],
             translations_repo=gh_input["translations_repo"],
             create_toml_file=gh_input["create_toml_file"],
+            auto_merge=gh_input["auto_merge"],
+            run_local=gh_input["run_local"],
+        )
+        create_status_file(
+            status=project_status,
+            token=gh_input["token"],
+            name=gh_input["name"],
+            email=gh_input["email"],
+            translations_repo=gh_input["translations_repo"],
             auto_merge=gh_input["auto_merge"],
             run_local=gh_input["run_local"],
         )
