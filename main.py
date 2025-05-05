@@ -352,6 +352,7 @@ def verify_signature(
     branch_name : str
         Branch name of the pull request.
     """
+    print(f'HELP: name: {name}, email: {email}')
     if run_local:
         return True
 
