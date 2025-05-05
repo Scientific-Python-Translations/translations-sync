@@ -352,7 +352,6 @@ def verify_signature(
     branch_name : str
         Branch name of the pull request.
     """
-    print(f'HELP: name: {name}, email: {email}')
     if run_local:
         return True
 
@@ -581,8 +580,8 @@ filter_commits('\\$filename', '{language}')
     # lang_prefix = [f"/{lp}/" for lp in all_languages]
     print("\n\n### Checking files found in source but not in translations")
     for root, _dirs, files in os.walk(src_path):
-        for name in files:
-            file_path = str(os.path.join(root, name)).replace(str(src_path), "")
+        for fname in files:
+            file_path = str(os.path.join(root, fname)).replace(str(src_path), "")
             # if file_path not in trans_files and check:
             if file_path not in trans_files:
                 source_copy = str(src_path) + file_path
@@ -902,11 +901,7 @@ def create_status_file(
     run(["git", "checkout", "main"], cwd=base_translations_path)
     run(["git", "checkout", "-b", "add/status-file"], cwd=base_translations_path)
     with open(f"{base_translations_path}/status.yml", "w") as fh:
-        fh.write(
-            yaml.dump(
-                status, default_flow_style=False, allow_unicode=True
-            )
-        )
+        fh.write(yaml.dump(status, default_flow_style=False, allow_unicode=True))
 
     branch_name = "add/status-file"
     pr_title = "Add/update status file."
