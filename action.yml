@@ -59,7 +59,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         repository: "Scientific-Python-Translations/translations-sync"
     - name: Import GPG key
